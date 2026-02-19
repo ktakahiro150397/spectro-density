@@ -18,6 +18,34 @@
       --red: #ef4444;
       --text: #e2e8f0;
       --text-muted: #64748b;
+      --canvas-bg: #070b14;
+      --track-bg: #0d1424;
+      --select-bg: #1e2d45;
+      --grid-color: rgba(30, 45, 69, 0.8);
+      --led-green-dark: #052e1a;
+      --led-yellow-dark: #2a1a00;
+      --led-red-dark: #2a0000;
+    }
+
+    body.light-theme {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --border: #e2e8f0;
+      --accent: #0284c7;
+      --accent2: #ea580c;
+      --accent3: #7c3aed;
+      --green: #059669;
+      --yellow: #d97706;
+      --red: #dc2626;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --canvas-bg: #f1f5f9;
+      --track-bg: #e2e8f0;
+      --select-bg: #f1f5f9;
+      --grid-color: rgba(203, 213, 225, 0.8);
+      --led-green-dark: #d1fae5;
+      --led-yellow-dark: #fef3c7;
+      --led-red-dark: #fee2e2;
     }
 
     * {
@@ -36,6 +64,7 @@
       align-items: center;
       padding: 24px 16px;
       gap: 24px;
+      transition: background 0.3s, color 0.3s;
     }
 
     h1 {
@@ -44,7 +73,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--accent);
-      text-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
     }
 
     .subtitle {
@@ -57,7 +86,49 @@
 
     .header {
       text-align: center;
+      position: relative;
+      width: 100%;
+      max-width: 960px;
     }
+
+    /* Theme Toggle */
+    .theme-toggle {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .theme-toggle:hover {
+      background: var(--border);
+      transform: translateY(-1px);
+    }
+
+    .theme-toggle svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .sun-icon { display: none; }
+    .moon-icon { display: block; }
+    body.light-theme .sun-icon { display: block; }
+    body.light-theme .moon-icon { display: none; }
 
     .main-grid {
       width: 100%;
@@ -71,6 +142,9 @@
       .main-grid {
         grid-template-columns: 1fr;
       }
+      .header {
+        padding-top: 48px;
+      }
     }
 
     .panel {
@@ -80,6 +154,7 @@
       padding: 20px;
       position: relative;
       overflow: hidden;
+      transition: background 0.3s, border-color 0.3s;
     }
 
     .panel::before {
@@ -111,7 +186,7 @@
       width: 100%;
       height: 200px;
       border-radius: 8px;
-      background: #070b14;
+      background: var(--canvas-bg);
       display: block;
     }
 
@@ -185,7 +260,7 @@
     .bar-track {
       flex: 1;
       height: 12px;
-      background: #0d1424;
+      background: var(--track-bg);
       border-radius: 6px;
       overflow: hidden;
       border: 1px solid var(--border);
@@ -365,6 +440,12 @@
       line-height: 1.6;
       max-width: 960px;
       width: 100%;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    body.light-theme .info-box {
+      background: rgba(2, 132, 199, 0.05);
+      border-color: rgba(2, 132, 199, 0.15);
     }
 
     .info-box strong {
@@ -402,6 +483,16 @@
       color: var(--text);
     }
 
+    select {
+      background: var(--select-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 6px;
+      font-size: 0.75rem;
+      transition: background 0.3s, color 0.3s;
+    }
+
     /* Peak markers */
     .peaks-display {
       display: flex;
@@ -433,6 +524,10 @@
   <div class="header">
     <h1>Spectral Density Analyzer</h1>
     <div class="subtitle">Vocal Formant &amp; Brilliance Ratio</div>
+    <button class="theme-toggle" id="themeToggle" title="Toggle Light/Dark Mode">
+      <svg class="sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+      <svg class="moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+    </button>
   </div>
 
   <div class="controls">
@@ -444,8 +539,7 @@
   <div class="settings-row">
     <div class="setting-item">
       <label>FFT Size:</label>
-      <select id="fftSizeSelect"
-        style="background:#1e2d45;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:0.75rem;">
+      <select id="fftSizeSelect">
         <option value="2048">2048</option>
         <option value="4096" selected>4096</option>
         <option value="8192">8192</option>
@@ -466,8 +560,7 @@
   <div class="settings-row">
     <div class="setting-item">
       <label>Audio Input:</label>
-      <select id="audioInputSelect"
-        style="background:#1e2d45;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:0.75rem;max-width:200px;">
+      <select id="audioInputSelect" style="max-width:200px;">
         <option value="default">Default</option>
       </select>
     </div>
@@ -574,6 +667,33 @@
     const specCtx = specCanvas.getContext('2d');
     const arcCtx = arcCanvas.getContext('2d');
 
+    // ─── Theme Management ──────────────────────────────────────────────────────────
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
+
+    function setTheme(isLight) {
+      if (isLight) {
+        body.classList.add('light-theme');
+        localStorage.setItem('theme', 'light');
+      } else {
+        body.classList.remove('light-theme');
+        localStorage.setItem('theme', 'dark');
+      }
+      if (animId === null) {
+        drawArc(null);
+        updateLEDs(1);
+      }
+    }
+
+    themeToggle.addEventListener('click', () => {
+      setTheme(!body.classList.contains('light-theme'));
+    });
+
+    // Check saved preference
+    if (localStorage.getItem('theme') === 'light') {
+      setTheme(true);
+    }
+
     // ─── LED setup ─────────────────────────────────────────────────────────────────
     const LED_COLS = 21;
     const LED_ROWS = 8;
@@ -597,10 +717,18 @@
     buildLEDs();
 
     function ledColor(col) {
+      const style = getComputedStyle(document.body);
+      const greenLit = style.getPropertyValue('--green').trim();
+      const greenDark = style.getPropertyValue('--led-green-dark').trim();
+      const yellowLit = style.getPropertyValue('--yellow').trim();
+      const yellowDark = style.getPropertyValue('--led-yellow-dark').trim();
+      const redLit = style.getPropertyValue('--red').trim();
+      const redDark = style.getPropertyValue('--led-red-dark').trim();
+
       // 0..6 green, 7..13 yellow, 14..20 red
-      if (col <= 6) return { lit: '#10b981', dark: '#052e1a', glow: 'rgba(16,185,129,0.6)' };
-      if (col <= 13) return { lit: '#f59e0b', dark: '#2a1a00', glow: 'rgba(245,158,11,0.6)' };
-      return { lit: '#ef4444', dark: '#2a0000', glow: 'rgba(239,68,68,0.6)' };
+      if (col <= 6) return { lit: greenLit, dark: greenDark, glow: 'rgba(16,185,129,0.3)' };
+      if (col <= 13) return { lit: yellowLit, dark: yellowDark, glow: 'rgba(245,158,11,0.3)' };
+      return { lit: redLit, dark: redDark, glow: 'rgba(239,68,68,0.3)' };
     }
 
     function updateLEDs(ratio) {
@@ -851,10 +979,15 @@
       const H = specCanvas.height;
       const ctx = specCtx;
 
+      const style = getComputedStyle(document.body);
+      const gridColor = style.getPropertyValue('--grid-color').trim();
+      const textMuted = style.getPropertyValue('--text-muted').trim();
+      const accent = style.getPropertyValue('--accent').trim();
+
       ctx.clearRect(0, 0, W, H);
 
       // Background grid
-      ctx.strokeStyle = 'rgba(30,45,69,0.8)';
+      ctx.strokeStyle = gridColor;
       ctx.lineWidth = 1;
 
       // Horizontal grid lines (dB)
@@ -863,7 +996,7 @@
         const y = H * (db / floorDb);
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y);
         ctx.stroke();
-        ctx.fillStyle = 'rgba(100,116,139,0.6)';
+        ctx.fillStyle = textMuted;
         ctx.font = '9px monospace';
         ctx.fillText(db + ' dB', 2, y - 2);
       }
@@ -874,9 +1007,9 @@
         const x = freqToX(f, binHz, data.length, W);
         if (x < 0 || x > W) return;
         ctx.strokeStyle = f >= HIGH_FREQ_MIN && f <= HIGH_FREQ_MAX
-          ? 'rgba(168,85,247,0.25)' : 'rgba(30,45,69,0.8)';
+          ? 'rgba(168,85,247,0.25)' : gridColor;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-        ctx.fillStyle = 'rgba(100,116,139,0.6)';
+        ctx.fillStyle = textMuted;
         ctx.font = '9px monospace';
         const label = f >= 1000 ? (f / 1000) + 'k' : f;
         ctx.fillText(label, x + 2, H - 4);
@@ -894,9 +1027,13 @@
 
       // Gradient fill under curve
       const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, 'rgba(0,212,255,0.7)');
+      // Ensure we have an rgba color for the gradient
+      const accentRgb = accent.startsWith('rgb') ? accent : 'rgba(0, 212, 255, 1)';
+      const accentBase = accentRgb.replace(/rgba?\((.*?)\)/, '$1').split(',').slice(0, 3).join(',');
+      
+      grad.addColorStop(0, `rgba(${accentBase}, 0.7)`);
       grad.addColorStop(0.5, 'rgba(99,102,241,0.3)');
-      grad.addColorStop(1, 'rgba(0,212,255,0.02)');
+      grad.addColorStop(1, `rgba(${accentBase}, 0.02)`);
 
       ctx.beginPath();
       ctx.moveTo(0, H);
@@ -919,9 +1056,9 @@
 
       // Spectrum line
       ctx.beginPath();
-      ctx.strokeStyle = '#00d4ff';
+      ctx.strokeStyle = accent;
       ctx.lineWidth = 1.5;
-      ctx.shadowColor = 'rgba(0,212,255,0.4)';
+      ctx.shadowColor = `rgba(${accentBase}, 0.4)`;
       ctx.shadowBlur = 4;
       for (let x = 0; x < W; x++) {
         const freq = xToFreq(x, binHz, data.length, W);
@@ -1016,11 +1153,12 @@
       ratioNum.textContent = smoothRatio.toFixed(2);
 
       // Color
+      const style = getComputedStyle(document.body);
       const logR = Math.log2(smoothRatio);
       if (logR > 1) ratioNum.style.color = '#3b82f6';   // warm (blue)
-      else if (logR > 0) ratioNum.style.color = '#10b981';   // balanced-warm (green)
-      else if (logR > -1) ratioNum.style.color = '#f59e0b';   // balanced-bright
-      else ratioNum.style.color = '#ef4444';   // very bright (red)
+      else if (logR > 0) ratioNum.style.color = style.getPropertyValue('--green').trim();
+      else if (logR > -1) ratioNum.style.color = style.getPropertyValue('--yellow').trim();
+      else ratioNum.style.color = style.getPropertyValue('--red').trim();
 
       // Arc
       drawArc(smoothRatio);
@@ -1068,13 +1206,18 @@
       const r = 88;
       const ctx = arcCtx;
 
+      const style = getComputedStyle(document.body);
+      const trackColor = style.getPropertyValue('--track-bg').trim();
+      const borderColor = style.getPropertyValue('--border').trim();
+      const textMuted = style.getPropertyValue('--text-muted').trim();
+
       ctx.clearRect(0, 0, W, H);
 
       // Background arc
       ctx.beginPath();
       ctx.arc(cx, cy, r, Math.PI, 0, false);
       ctx.lineWidth = 16;
-      ctx.strokeStyle = '#0d1424';
+      ctx.strokeStyle = trackColor;
       ctx.stroke();
 
       // Tick marks
@@ -1087,7 +1230,7 @@
         ctx.beginPath();
         ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
         ctx.lineWidth = i === 5 ? 2.5 : 1;
-        ctx.strokeStyle = i === 5 ? '#64748b' : '#1e2d45';
+        ctx.strokeStyle = i === 5 ? textMuted : borderColor;
         ctx.stroke();
       }
 
