@@ -735,7 +735,6 @@
     let smoothing = 0.8;
     let floorDb = -80;
     let isSeeking = false;
-    let history = []; // For Box Plot
 
     // ─── DOM refs ──────────────────────────────────────────────────────────────────
     const btnStart = document.getElementById('btnStart');
@@ -767,6 +766,9 @@
     const arcCtx = arcCanvas.getContext('2d');
     const boxCtx = boxCanvas.getContext('2d');
 
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
+
     // ─── Audio Initialization ─────────────────────────────────────────────────────
     function initAudio() {
       if (!audioCtx) {
@@ -781,9 +783,6 @@
     }
 
     // ─── Theme Management ──────────────────────────────────────────────────────────
-    const themeToggle = document.getElementById('themeToggle');
-    const body = document.body;
-
     function setTheme(isLight) {
       if (isLight) {
         body.classList.add('light-theme');
@@ -1022,6 +1021,8 @@
       peaksDisp.innerHTML = ''; qualLabel.textContent = '—';
       updateLEDs(1); drawArc(null);
       specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
+      resetSmoothRatio();
+      resetHistory();
     }
 
     // ─── Settings ──────────────────────────────────────────────────────────────────
@@ -1052,10 +1053,6 @@
       drawSpectrum(data, binHz);
       const { lowPeaks, highPeaks, lowPower, highPower, ratio } = computeRatio(data, binHz);
       updateRatioUI(ratio, lowPower, highPower, lowPeaks, highPeaks);
-      if (ratio !== null) {
-        history.push(ratio);
-        if (history.length % 5 === 0) drawBoxPlot();
-      }
     }
 
     function resizeCanvas() {
@@ -1066,65 +1063,167 @@
     }
 
     // ─── Box Plot ──────────────────────────────────────────────────────────────────
-    btnResetHistory.addEventListener('click', () => { history = []; drawBoxPlot(); });
+    const ratioHistory = [];   // stores log2(ratio) values
+    const ratioJitter  = [];   // pre-computed y-jitter for dot scatter
+    const MAX_HISTORY  = 7200; // ~2 min at 60fps
+    const BOX_LOG_RANGE = 4;   // x-axis: log2(ratio) ± 4
 
-    function getStats(arr) {
-      if (arr.length === 0) return null;
-      const sorted = [...arr].sort((a, b) => a - b);
-      const mean = arr.reduce((s, v) => s + v, 0) / arr.length;
-      const q = p => sorted[Math.floor(p * (sorted.length - 1))];
-      return { min: sorted[0], max: sorted[sorted.length - 1], p5: q(0.05), q1: q(0.25), median: q(0.5), q3: q(0.75), p95: q(0.95), mean, n: arr.length };
+    function addRatioSample(ratio) {
+      if (ratio === null) return;
+      ratioHistory.push(Math.log2(ratio));
+      ratioJitter.push(Math.random() - 0.5);
+      if (ratioHistory.length > MAX_HISTORY) {
+        ratioHistory.shift();
+        ratioJitter.shift();
+      }
+    }
+
+    function resetHistory() {
+      ratioHistory.length = 0;
+      ratioJitter.length = 0;
+      document.getElementById('bpP5').textContent     = '5th: —';
+      document.getElementById('bpQ1').textContent     = 'Q1: —';
+      document.getElementById('bpMedian').textContent = 'Median: —';
+      document.getElementById('bpMean').textContent   = 'Mean: —';
+      document.getElementById('bpQ3').textContent     = 'Q3: —';
+      document.getElementById('bpP95').textContent    = '95th: —';
+      document.getElementById('bpN').textContent      = 'N = 0';
+      boxCtx.clearRect(0, 0, boxCanvas.width, boxCanvas.height);
+    }
+
+    btnResetHistory.addEventListener('click', resetHistory);
+
+    function pctile(sorted, p) {
+      if (sorted.length === 0) return 0;
+      const idx = (p / 100) * (sorted.length - 1);
+      const lo  = Math.floor(idx);
+      const hi  = Math.ceil(idx);
+      return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+    }
+
+    function logToX(logVal, W) {
+      return Math.max(0, Math.min(W, ((logVal + BOX_LOG_RANGE) / (2 * BOX_LOG_RANGE)) * W));
     }
 
     function drawBoxPlot() {
-      const W = boxCanvas.width; const H = boxCanvas.height; const ctx = boxCtx;
+      const W = boxCanvas.width, H = boxCanvas.height;
+      const ctx = boxCtx;
       ctx.clearRect(0, 0, W, H);
-      const stats = getStats(history);
-      const updateText = (id, val) => document.getElementById(id).textContent = val;
-      if (!stats) {
-        ["bpP5","bpQ1","bpMedian","bpMean","bpQ3","bpP95"].forEach(id => updateText(id, id.split('bp')[1] + ": —"));
-        updateText("bpN", "N = 0"); return;
+
+      // Colored background gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, W, 0);
+      bgGrad.addColorStop(0,    'rgba(59,130,246,0.07)');
+      bgGrad.addColorStop(0.5,  'rgba(16,185,129,0.05)');
+      bgGrad.addColorStop(1,    'rgba(239,68,68,0.07)');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Axis tick marks & labels
+      const ticks = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
+      ticks.forEach(t => {
+        const x = logToX(t, W);
+        ctx.strokeStyle = t === 0 ? 'rgba(100,116,139,0.55)' : 'rgba(30,45,69,0.9)';
+        ctx.lineWidth   = t === 0 ? 1.5 : 0.8;
+        ctx.setLineDash(t === 0 ? [4, 4] : []);
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+        ctx.setLineDash([]);
+        const rv = Math.pow(2, t);
+        const label = rv >= 10 ? rv.toFixed(0) : rv < 0.2 ? rv.toFixed(2) : rv.toFixed(1);
+        ctx.fillStyle  = t === 0 ? 'rgba(148,163,184,0.8)' : 'rgba(100,116,139,0.55)';
+        ctx.font       = '8px monospace';
+        ctx.textAlign  = 'center';
+        ctx.fillText(label, x, H - 3);
+      });
+      ctx.textAlign = 'left';
+
+      const LABEL_H = 14;
+      const plotH   = H - LABEL_H;
+      const boxY1   = plotH * 0.18;
+      const boxY2   = plotH * 0.72;
+      const midY    = (boxY1 + boxY2) / 2;
+
+      if (ratioHistory.length < 5) {
+        ctx.fillStyle  = 'rgba(100,116,139,0.45)';
+        ctx.font       = '11px system-ui';
+        ctx.textAlign  = 'center';
+        ctx.fillText('Collecting data… (need 5+ samples)', W / 2, midY + 4);
+        ctx.textAlign  = 'left';
+        return;
       }
-      updateText("bpP5", "5th: " + stats.p5.toFixed(2));
-      updateText("bpQ1", "Q1: " + stats.q1.toFixed(2));
-      updateText("bpMedian", "Median: " + stats.median.toFixed(2));
-      updateText("bpMean", "Mean: " + stats.mean.toFixed(2));
-      updateText("bpQ3", "Q3: " + stats.q3.toFixed(2));
-      updateText("bpP95", "95th: " + stats.p95.toFixed(2));
-      updateText("bpN", "N = " + stats.n);
 
-      const style = getComputedStyle(document.body);
-      const accent = style.getPropertyValue('--accent').trim();
-      const textMuted = style.getPropertyValue('--text-muted').trim();
-      const border = style.getPropertyValue('--border').trim();
+      const sorted = [...ratioHistory].sort((a, b) => a - b);
+      const p5   = pctile(sorted, 5);
+      const q1   = pctile(sorted, 25);
+      const med  = pctile(sorted, 50);
+      const q3   = pctile(sorted, 75);
+      const p95  = pctile(sorted, 95);
+      const mean = ratioHistory.reduce((a, b) => a + b, 0) / ratioHistory.length;
 
-      const minX = Math.log2(0.125), maxX = Math.log2(8);
-      const toX = v => {
-        const lv = Math.log2(Math.max(0.1, v));
-        return ((lv - minX) / (maxX - minX)) * W;
-      };
+      // Dot scatter (recent 180 samples)
+      const recent = ratioHistory.slice(-180);
+      const recentJ = ratioJitter.slice(-180);
+      recent.forEach((v, i) => {
+        const x     = logToX(v, W);
+        const alpha = (i / recent.length) * 0.45 + 0.06;
+        const dotY  = midY + recentJ[i] * (boxY2 - boxY1) * 0.55;
+        ctx.fillStyle = `rgba(0,212,255,${alpha.toFixed(2)})`;
+        ctx.beginPath(); ctx.arc(x, dotY, 2, 0, Math.PI * 2); ctx.fill();
+      });
 
-      ctx.strokeStyle = border; ctx.lineWidth = 1;
-      for (let i = -3; i <= 3; i++) {
-        const x = toX(Math.pow(2, i)); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-        ctx.fillStyle = textMuted; ctx.font = '9px monospace'; ctx.fillText(Math.pow(2, i).toFixed(2), x + 2, H - 4);
+      // Whiskers
+      ctx.strokeStyle = 'rgba(148,163,184,0.55)';
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([3, 3]);
+      [[p5, q1], [q3, p95]].forEach(([a, b]) => {
+        ctx.beginPath(); ctx.moveTo(logToX(a, W), midY); ctx.lineTo(logToX(b, W), midY); ctx.stroke();
+      });
+      ctx.setLineDash([]);
+      [p5, p95].forEach(v => {
+        const x = logToX(v, W);
+        ctx.beginPath(); ctx.moveTo(x, boxY1 + (boxY2 - boxY1) * 0.22); ctx.lineTo(x, boxY2 - (boxY2 - boxY1) * 0.22); ctx.stroke();
+      });
+
+      // IQR Box
+      const bx = logToX(q1, W);
+      const bw = logToX(q3, W) - bx;
+      const boxFill = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+      boxFill.addColorStop(0,   'rgba(59,130,246,0.22)');
+      boxFill.addColorStop(0.5, 'rgba(16,185,129,0.22)');
+      boxFill.addColorStop(1,   'rgba(239,68,68,0.22)');
+      ctx.fillStyle   = boxFill;
+      ctx.strokeStyle = 'rgba(148,163,184,0.5)';
+      ctx.lineWidth   = 1.5;
+      ctx.fillRect(bx, boxY1, bw, boxY2 - boxY1);
+      ctx.strokeRect(bx, boxY1, bw, boxY2 - boxY1);
+
+      // Median
+      const mx = logToX(med, W);
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.shadowBlur = 4; ctx.shadowColor = 'rgba(255,255,255,0.4)';
+      ctx.beginPath(); ctx.moveTo(mx, boxY1 - 3); ctx.lineTo(mx, boxY2 + 3); ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Mean
+      ctx.fillStyle = '#f59e0b'; ctx.shadowBlur = 5; ctx.shadowColor = 'rgba(245,158,11,0.6)';
+      ctx.beginPath(); ctx.arc(logToX(mean, W), midY, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Current
+      if (smoothRatio !== null) {
+        const cx2 = logToX(Math.log2(smoothRatio), W);
+        ctx.strokeStyle = 'rgba(0,212,255,0.9)'; ctx.lineWidth = 2; ctx.shadowBlur = 6; ctx.shadowColor = 'rgba(0,212,255,0.5)';
+        ctx.beginPath(); ctx.moveTo(cx2, boxY1 - 6); ctx.lineTo(cx2, boxY2 + 6); ctx.stroke();
+        ctx.shadowBlur = 0;
       }
 
-      const y = H / 2, h = 30;
-      const x5 = toX(stats.p5), x95 = toX(stats.p95), x1 = toX(stats.q1), x3 = toX(stats.q3), xm = toX(stats.median), xavg = toX(stats.mean);
-
-      ctx.strokeStyle = accent; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(x5, y); ctx.lineTo(x1, y); ctx.moveTo(x3, y); ctx.lineTo(x95, y); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x5, y - 10); ctx.lineTo(x5, y + 10); ctx.moveTo(x95, y - 10); ctx.lineTo(x95, y + 10); ctx.stroke();
-
-      ctx.fillStyle = "rgba(0, 212, 255, 0.2)";
-      ctx.fillRect(x1, y - h / 2, x3 - x1, h);
-      ctx.strokeStyle = accent; ctx.strokeRect(x1, y - h / 2, x3 - x1, h);
-
-      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(xm, y - h / 2); ctx.lineTo(xm, y + h / 2); ctx.stroke();
-
-      ctx.fillStyle = "#f59e0b"; ctx.beginPath(); ctx.arc(xavg, y, 5, 0, Math.PI * 2); ctx.fill();
+      // Stats
+      const fmt = v => Math.pow(2, v).toFixed(2);
+      document.getElementById('bpP5').textContent     = `5th: ${fmt(p5)}`;
+      document.getElementById('bpQ1').textContent     = `Q1: ${fmt(q1)}`;
+      document.getElementById('bpMedian').textContent = `Median: ${fmt(med)}`;
+      document.getElementById('bpMean').textContent   = `Mean: ${fmt(mean)}`;
+      document.getElementById('bpQ3').textContent     = `Q3: ${fmt(q3)}`;
+      document.getElementById('bpP95').textContent    = `95th: ${fmt(p95)}`;
+      document.getElementById('bpN').textContent      = `N = ${ratioHistory.length}`;
     }
 
     // ─── Spectrum drawing ──────────────────────────────────────────────────────────
@@ -1214,6 +1313,8 @@
 
     // ─── UI update ─────────────────────────────────────────────────────────────────
     let smoothRatio = null; const RATIO_SMOOTH = 0.1;
+    function resetSmoothRatio() { smoothRatio = null; }
+
     function updateRatioUI(ratio, lowPower, highPower, lowPeaks, highPeaks) {
       if (ratio === null) return;
       smoothRatio = smoothRatio === null ? ratio : smoothRatio + RATIO_SMOOTH * (ratio - smoothRatio);
@@ -1225,6 +1326,7 @@
       else if (logR > -1) ratioNum.style.color = style.getPropertyValue('--green').trim();
       else ratioNum.style.color = '#3b82f6';
       drawArc(smoothRatio); updateLEDs(smoothRatio);
+      addRatioSample(ratio); drawBoxPlot();
       const REF_POWER = dbToPower(-30);
       const lowPct = Math.min(100, (lowPower / REF_POWER) * 100);
       const highPct = Math.min(100, (highPower / REF_POWER) * 100);
@@ -1243,7 +1345,7 @@
         peaksDisp.appendChild(chip);
       });
       const logSmooth = Math.log2(smoothRatio);
-      if (logSmooth > 1.5) qualLabel.textContent = 'Very Bright / Brilliance Dominant';
+      if (logSmooth > 2) qualLabel.textContent = 'Very Bright / Brilliance Dominant';
       else if (logSmooth > 0.5) qualLabel.textContent = 'Bright & Forward';
       else if (logSmooth > -0.5) qualLabel.textContent = 'Well Balanced';
       else if (logSmooth > -1.5) qualLabel.textContent = 'Warm & Full';
@@ -1268,7 +1370,7 @@
       }
       if (ratio === null) return;
       const logR = Math.log2(Math.max(0.1, Math.min(ratio, 10)));
-      const t = Math.max(0, Math.min(1, 0.5 + logR / 6));
+      const t = Math.max(0, Math.min(1, 0.5 - logR / 6));
       const needAng = Math.PI + t * Math.PI;
       const arcGrad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
       arcGrad.addColorStop(0, '#3b82f6'); arcGrad.addColorStop(0.35, '#10b981'); arcGrad.addColorStop(0.5, '#10b981'); arcGrad.addColorStop(0.65, '#f59e0b'); arcGrad.addColorStop(1, '#ef4444');
