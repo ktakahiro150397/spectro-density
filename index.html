@@ -647,7 +647,7 @@
           <canvas id="arcCanvas" width="200" height="110"></canvas>
           <div class="arc-value-overlay">
             <div class="ratio-number" id="ratioNumber">—</div>
-            <div class="ratio-label">Low:High ratio</div>
+            <div class="ratio-label">High:Low ratio</div>
           </div>
         </div>
       </div>
@@ -689,14 +689,35 @@
 
   </div>
 
+  <!-- Box Plot Panel -->
+  <div class="panel" style="width:100%;max-width:960px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div class="panel-title" style="margin-bottom:0">Ratio Distribution — Session Box Plot</div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:0.65rem;color:var(--text-muted);">
+        <span>&#9632; <span style="color:#ffffff">Median</span> &nbsp; &#9679; <span style="color:#f59e0b">Mean</span></span>
+        <button id="btnResetHistory" style="background:rgba(100,116,139,0.15);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:3px 10px;font-size:0.65rem;cursor:pointer;letter-spacing:0.08em;text-transform:uppercase;">Reset</button>
+      </div>
+    </div>
+    <canvas id="boxCanvas" style="width:100%;height:110px;display:block;background:#070b14;border-radius:8px;"></canvas>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.65rem;color:var(--text-muted);font-variant-numeric:tabular-nums;flex-wrap:wrap;gap:4px;">
+      <span id="bpP5">5th: —</span>
+      <span id="bpQ1">Q1: —</span>
+      <span id="bpMedian">Median: —</span>
+      <span id="bpMean">Mean: —</span>
+      <span id="bpQ3">Q3: —</span>
+      <span id="bpP95">95th: —</span>
+      <span id="bpN" style="color:var(--accent)">N = 0</span>
+    </div>
+  </div>
+
   <div class="info-box">
     <strong>How it works:</strong>
     The analyzer detects the <strong>three strongest low-frequency peaks</strong> (typically vocal fundamentals and
     lower formants),
     sums their power, then sums the power of peaks in the <strong>2 kHz – 6 kHz</strong> range (singer's formant /
     brilliance zone).
-    The <strong>ratio</strong> = Low Power / High Power. A ratio &gt; 1 means the voice is warm/chest-dominant;
-    ratio near 1 is balanced; ratio &lt; 1 means the high-frequency brilliance is dominant.
+    The <strong>ratio</strong> = High Power / Low Power. A ratio &gt; 1 means the high-frequency brilliance is dominant;
+    ratio near 1 is balanced; ratio &lt; 1 means the voice is warm/chest-dominant.
   </div>
 
   <script>
@@ -714,6 +735,7 @@
     let smoothing = 0.8;
     let floorDb = -80;
     let isSeeking = false;
+    let history = []; // For Box Plot
 
     // ─── DOM refs ──────────────────────────────────────────────────────────────────
     const btnStart = document.getElementById('btnStart');
@@ -730,6 +752,7 @@
     const statusText = document.getElementById('statusText');
     const specCanvas = document.getElementById('specCanvas');
     const arcCanvas = document.getElementById('arcCanvas');
+    const boxCanvas = document.getElementById('boxCanvas');
     const ratioNum = document.getElementById('ratioNumber');
     const barLow = document.getElementById('barLow');
     const barHigh = document.getElementById('barHigh');
@@ -738,12 +761,11 @@
     const peaksDisp = document.getElementById('peaksDisplay');
     const qualLabel = document.getElementById('qualityLabel');
     const ledMeter = document.getElementById('ledMeter');
+    const btnResetHistory = document.getElementById('btnResetHistory');
 
     const specCtx = specCanvas.getContext('2d');
     const arcCtx = arcCanvas.getContext('2d');
-
-    const themeToggle = document.getElementById('themeToggle');
-    const body = document.body;
+    const boxCtx = boxCanvas.getContext('2d');
 
     // ─── Audio Initialization ─────────────────────────────────────────────────────
     function initAudio() {
@@ -759,6 +781,9 @@
     }
 
     // ─── Theme Management ──────────────────────────────────────────────────────────
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
+
     function setTheme(isLight) {
       if (isLight) {
         body.classList.add('light-theme');
@@ -770,6 +795,7 @@
       if (animId === null) {
         drawArc(null);
         updateLEDs(1);
+        drawBoxPlot();
       }
     }
 
@@ -813,7 +839,7 @@
 
     function updateLEDs(ratio) {
       const logR = Math.log2(Math.max(0.1, Math.min(ratio, 10)));
-      const level = Math.round(10 - logR * (10 / 3)); 
+      const level = Math.round(10 + logR * (10 / 3)); 
       const lit = Math.max(0, Math.min(20, level));
 
       for (let r = 0; r < LED_ROWS; r++) {
@@ -1026,11 +1052,79 @@
       drawSpectrum(data, binHz);
       const { lowPeaks, highPeaks, lowPower, highPower, ratio } = computeRatio(data, binHz);
       updateRatioUI(ratio, lowPower, highPower, lowPeaks, highPeaks);
+      if (ratio !== null) {
+        history.push(ratio);
+        if (history.length % 5 === 0) drawBoxPlot();
+      }
     }
 
     function resizeCanvas() {
       const w = specCanvas.offsetWidth; const h = specCanvas.offsetHeight;
       if (specCanvas.width !== w || specCanvas.height !== h) { specCanvas.width = w; specCanvas.height = h; }
+      const bw = boxCanvas.offsetWidth; const bh = boxCanvas.offsetHeight;
+      if (boxCanvas.width !== bw || boxCanvas.height !== bh) { boxCanvas.width = bw; boxCanvas.height = bh; }
+    }
+
+    // ─── Box Plot ──────────────────────────────────────────────────────────────────
+    btnResetHistory.addEventListener('click', () => { history = []; drawBoxPlot(); });
+
+    function getStats(arr) {
+      if (arr.length === 0) return null;
+      const sorted = [...arr].sort((a, b) => a - b);
+      const mean = arr.reduce((s, v) => s + v, 0) / arr.length;
+      const q = p => sorted[Math.floor(p * (sorted.length - 1))];
+      return { min: sorted[0], max: sorted[sorted.length - 1], p5: q(0.05), q1: q(0.25), median: q(0.5), q3: q(0.75), p95: q(0.95), mean, n: arr.length };
+    }
+
+    function drawBoxPlot() {
+      const W = boxCanvas.width; const H = boxCanvas.height; const ctx = boxCtx;
+      ctx.clearRect(0, 0, W, H);
+      const stats = getStats(history);
+      const updateText = (id, val) => document.getElementById(id).textContent = val;
+      if (!stats) {
+        ["bpP5","bpQ1","bpMedian","bpMean","bpQ3","bpP95"].forEach(id => updateText(id, id.split('bp')[1] + ": —"));
+        updateText("bpN", "N = 0"); return;
+      }
+      updateText("bpP5", "5th: " + stats.p5.toFixed(2));
+      updateText("bpQ1", "Q1: " + stats.q1.toFixed(2));
+      updateText("bpMedian", "Median: " + stats.median.toFixed(2));
+      updateText("bpMean", "Mean: " + stats.mean.toFixed(2));
+      updateText("bpQ3", "Q3: " + stats.q3.toFixed(2));
+      updateText("bpP95", "95th: " + stats.p95.toFixed(2));
+      updateText("bpN", "N = " + stats.n);
+
+      const style = getComputedStyle(document.body);
+      const accent = style.getPropertyValue('--accent').trim();
+      const textMuted = style.getPropertyValue('--text-muted').trim();
+      const border = style.getPropertyValue('--border').trim();
+
+      const minX = Math.log2(0.125), maxX = Math.log2(8);
+      const toX = v => {
+        const lv = Math.log2(Math.max(0.1, v));
+        return ((lv - minX) / (maxX - minX)) * W;
+      };
+
+      ctx.strokeStyle = border; ctx.lineWidth = 1;
+      for (let i = -3; i <= 3; i++) {
+        const x = toX(Math.pow(2, i)); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+        ctx.fillStyle = textMuted; ctx.font = '9px monospace'; ctx.fillText(Math.pow(2, i).toFixed(2), x + 2, H - 4);
+      }
+
+      const y = H / 2, h = 30;
+      const x5 = toX(stats.p5), x95 = toX(stats.p95), x1 = toX(stats.q1), x3 = toX(stats.q3), xm = toX(stats.median), xavg = toX(stats.mean);
+
+      ctx.strokeStyle = accent; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x5, y); ctx.lineTo(x1, y); ctx.moveTo(x3, y); ctx.lineTo(x95, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x5, y - 10); ctx.lineTo(x5, y + 10); ctx.moveTo(x95, y - 10); ctx.lineTo(x95, y + 10); ctx.stroke();
+
+      ctx.fillStyle = "rgba(0, 212, 255, 0.2)";
+      ctx.fillRect(x1, y - h / 2, x3 - x1, h);
+      ctx.strokeStyle = accent; ctx.strokeRect(x1, y - h / 2, x3 - x1, h);
+
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(xm, y - h / 2); ctx.lineTo(xm, y + h / 2); ctx.stroke();
+
+      ctx.fillStyle = "#f59e0b"; ctx.beginPath(); ctx.arc(xavg, y, 5, 0, Math.PI * 2); ctx.fill();
     }
 
     // ─── Spectrum drawing ──────────────────────────────────────────────────────────
@@ -1114,7 +1208,7 @@
       const highPeaks = findPeaks(data, binHz, HIGH_FREQ_MIN, HIGH_FREQ_MAX, MIN_PEAK_DB).slice(0, 6);
       const lowPower = lowPeaks.reduce((s, p) => s + dbToPower(p.db), 0);
       const highPower = highPeaks.reduce((s, p) => s + dbToPower(p.db), 0);
-      const ratio = highPower > 0 ? lowPower / highPower : null;
+      const ratio = lowPower > 0 ? highPower / lowPower : null;
       return { lowPeaks, highPeaks, lowPower, highPower, ratio };
     }
 
@@ -1126,10 +1220,10 @@
       ratioNum.textContent = smoothRatio.toFixed(2);
       const style = getComputedStyle(document.body);
       const logR = Math.log2(smoothRatio);
-      if (logR > 1) ratioNum.style.color = '#3b82f6';
-      else if (logR > 0) ratioNum.style.color = style.getPropertyValue('--green').trim();
-      else if (logR > -1) ratioNum.style.color = style.getPropertyValue('--yellow').trim();
-      else ratioNum.style.color = style.getPropertyValue('--red').trim();
+      if (logR > 1) ratioNum.style.color = style.getPropertyValue('--red').trim();
+      else if (logR > 0) ratioNum.style.color = style.getPropertyValue('--yellow').trim();
+      else if (logR > -1) ratioNum.style.color = style.getPropertyValue('--green').trim();
+      else ratioNum.style.color = '#3b82f6';
       drawArc(smoothRatio); updateLEDs(smoothRatio);
       const REF_POWER = dbToPower(-30);
       const lowPct = Math.min(100, (lowPower / REF_POWER) * 100);
@@ -1149,11 +1243,11 @@
         peaksDisp.appendChild(chip);
       });
       const logSmooth = Math.log2(smoothRatio);
-      if (logSmooth > 2) qualLabel.textContent = 'Very Warm / Chest Voice Dominant';
-      else if (logSmooth > 0.5) qualLabel.textContent = 'Warm & Full';
+      if (logSmooth > 1.5) qualLabel.textContent = 'Very Bright / Brilliance Dominant';
+      else if (logSmooth > 0.5) qualLabel.textContent = 'Bright & Forward';
       else if (logSmooth > -0.5) qualLabel.textContent = 'Well Balanced';
-      else if (logSmooth > -1.5) qualLabel.textContent = 'Bright & Forward';
-      else qualLabel.textContent = 'Very Bright / Brilliance Dominant';
+      else if (logSmooth > -1.5) qualLabel.textContent = 'Warm & Full';
+      else qualLabel.textContent = 'Very Warm / Chest Voice Dominant';
     }
 
     // ─── Arc Meter drawing ─────────────────────────────────────────────────────────
@@ -1174,7 +1268,7 @@
       }
       if (ratio === null) return;
       const logR = Math.log2(Math.max(0.1, Math.min(ratio, 10)));
-      const t = Math.max(0, Math.min(1, 0.5 - logR / 6));
+      const t = Math.max(0, Math.min(1, 0.5 + logR / 6));
       const needAng = Math.PI + t * Math.PI;
       const arcGrad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
       arcGrad.addColorStop(0, '#3b82f6'); arcGrad.addColorStop(0.35, '#10b981'); arcGrad.addColorStop(0.5, '#10b981'); arcGrad.addColorStop(0.65, '#f59e0b'); arcGrad.addColorStop(1, '#ef4444');
@@ -1191,6 +1285,7 @@
     if (localStorage.getItem('theme') === 'light') setTheme(true);
     drawArc(null);
     updateLEDs(1);
+    drawBoxPlot();
   </script>
 </body>
 </html>
