@@ -73,7 +73,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--accent);
-      text-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
     }
 
     .subtitle {
@@ -125,10 +125,21 @@
       stroke-linejoin: round;
     }
 
-    .sun-icon { display: none; }
-    .moon-icon { display: block; }
-    body.light-theme .sun-icon { display: block; }
-    body.light-theme .moon-icon { display: none; }
+    .sun-icon {
+      display: none;
+    }
+
+    .moon-icon {
+      display: block;
+    }
+
+    body.light-theme .sun-icon {
+      display: block;
+    }
+
+    body.light-theme .moon-icon {
+      display: none;
+    }
 
     .main-grid {
       width: 100%;
@@ -142,6 +153,7 @@
       .main-grid {
         grid-template-columns: 1fr;
       }
+
       .header {
         padding-top: 48px;
       }
@@ -516,6 +528,61 @@
       border-color: rgba(168, 85, 247, 0.2);
       color: #a855f7;
     }
+
+    /* Playback Row / Seek Bar */
+    .playback-row {
+      width: 100%;
+      max-width: 960px;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .seek-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 10px 20px;
+      border-radius: 14px;
+      width: 100%;
+    }
+
+    input[type="range"].seek-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--track-bg);
+      border-radius: 3px;
+      appearance: none;
+      outline: none;
+      accent-color: var(--accent);
+    }
+
+    input[type="range"].seek-bar::-webkit-slider-runnable-track {
+      background: var(--track-bg);
+      height: 6px;
+      border-radius: 3px;
+    }
+
+    .time-display {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      min-width: 45px;
+      font-variant-numeric: tabular-nums;
+    }
   </style>
 </head>
 
@@ -525,16 +592,48 @@
     <h1>Spectral Density Analyzer</h1>
     <div class="subtitle">Vocal Formant &amp; Brilliance Ratio</div>
     <button class="theme-toggle" id="themeToggle" title="Toggle Light/Dark Mode">
-      <svg class="sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-      <svg class="moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+      <svg class="sun-icon" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <svg class="moon-icon" viewBox="0 0 24 24">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
     </button>
   </div>
 
   <div class="controls">
     <button class="btn btn-start" id="btnStart">&#9654; Start Microphone</button>
     <button class="btn btn-stop" id="btnStop" style="display:none">&#9632; Stop</button>
+    <div
+      style="display:flex; gap:8px; align-items:center; border-left:1px solid var(--border); padding-left:12px; margin-left:4px;">
+      <label for="fileInput" class="btn btn-start" style="margin:0; font-size:0.75rem; padding:8px 16px;">&#128194; Load
+        MP3</label>
+      <input type="file" id="fileInput" accept="audio/*" style="display:none">
+      <button class="btn btn-start" id="btnPlayFile" style="display:none; padding:8px 16px; font-size:0.75rem;">&#9654;
+        Play</button>
+      <button class="btn btn-stop" id="btnStopFile" style="display:none; padding:8px 16px; font-size:0.75rem;">&#9632;
+        Stop</button>
+    </div>
     <span><span class="status-dot" id="statusDot"></span><span class="status-text" id="statusText">Idle</span></span>
   </div>
+
+  <div class="playback-row" id="playbackRow">
+    <div class="seek-container">
+      <span class="time-display" id="currentTimeText">0:00</span>
+      <input type="range" class="seek-bar" id="seekBar" value="0" step="0.1">
+      <span class="time-display" id="durationTimeText">0:00</span>
+    </div>
+  </div>
+
+  <audio id="audioElement" style="display:none"></audio>
 
   <div class="settings-row">
     <div class="setting-item">
@@ -630,12 +729,15 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
       <div class="panel-title" style="margin-bottom:0">Ratio Distribution — Session Box Plot</div>
       <div style="display:flex;align-items:center;gap:12px;font-size:0.65rem;color:var(--text-muted);">
-        <span>&#9632; <span style="color:#ffffff">Median</span> &nbsp; &#9679; <span style="color:#f59e0b">Mean</span></span>
-        <button id="btnResetHistory" style="background:rgba(100,116,139,0.15);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:3px 10px;font-size:0.65rem;cursor:pointer;letter-spacing:0.08em;text-transform:uppercase;">Reset</button>
+        <span>&#9632; <span style="color:#ffffff">Median</span> &nbsp; &#9679; <span
+            style="color:#f59e0b">Mean</span></span>
+        <button id="btnResetHistory"
+          style="background:rgba(100,116,139,0.15);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:3px 10px;font-size:0.65rem;cursor:pointer;letter-spacing:0.08em;text-transform:uppercase;">Reset</button>
       </div>
     </div>
     <canvas id="boxCanvas" style="width:100%;height:110px;display:block;background:#070b14;border-radius:8px;"></canvas>
-    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.65rem;color:var(--text-muted);font-variant-numeric:tabular-nums;flex-wrap:wrap;gap:4px;">
+    <div
+      style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.65rem;color:var(--text-muted);font-variant-numeric:tabular-nums;flex-wrap:wrap;gap:4px;">
       <span id="bpP5">5th: —</span>
       <span id="bpQ1">Q1: —</span>
       <span id="bpMedian">Median: —</span>
@@ -665,17 +767,31 @@
 
     // ─── State ────────────────────────────────────────────────────────────────────
     let audioCtx = null, analyser = null, micStream = null, animId = null;
+    let sourceNode = null; // Current active source (mic or file)
+    let fileSourceNode = null; // Persistent node for the audio element
     let fftSize = 4096;
     let smoothing = 0.8;
     let floorDb = -80;
+    let isSeeking = false;
+    let ratioHistory = []; // For Box Plot
+    let ratioJitter = []; // jitter for Box Plot scatter
 
     // ─── DOM refs ──────────────────────────────────────────────────────────────────
     const btnStart = document.getElementById('btnStart');
     const btnStop = document.getElementById('btnStop');
+    const fileInput = document.getElementById('fileInput');
+    const btnPlayFile = document.getElementById('btnPlayFile');
+    const btnStopFile = document.getElementById('btnStopFile');
+    const audioElement = document.getElementById('audioElement');
+    const playbackRow = document.getElementById('playbackRow');
+    const seekBar = document.getElementById('seekBar');
+    const currentTimeText = document.getElementById('currentTimeText');
+    const durationTimeText = document.getElementById('durationTimeText');
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
     const specCanvas = document.getElementById('specCanvas');
     const arcCanvas = document.getElementById('arcCanvas');
+    const boxCanvas = document.getElementById('boxCanvas');
     const ratioNum = document.getElementById('ratioNumber');
     const barLow = document.getElementById('barLow');
     const barHigh = document.getElementById('barHigh');
@@ -684,35 +800,51 @@
     const peaksDisp = document.getElementById('peaksDisplay');
     const qualLabel = document.getElementById('qualityLabel');
     const ledMeter = document.getElementById('ledMeter');
+    const btnResetHistory = document.getElementById('btnResetHistory');
 
     const specCtx = specCanvas.getContext('2d');
     const arcCtx = arcCanvas.getContext('2d');
+    const boxCtx = boxCanvas.getContext('2d');
+
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
+
+    // ─── Audio Initialization ─────────────────────────────────────────────────────
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (!analyser) {
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = fftSize;
+        analyser.smoothingTimeConstant = smoothing;
+      }
+      return { audioCtx, analyser };
+    }
 
     // ─── Theme Management ──────────────────────────────────────────────────────────
-    const themeToggle = document.getElementById('themeToggle');
-
     function setTheme(isLight) {
       if (isLight) {
-        document.body.classList.add('light-theme');
+        body.classList.add('light-theme');
         localStorage.setItem('theme', 'light');
       } else {
-        document.body.classList.remove('light-theme');
+        body.classList.remove('light-theme');
         localStorage.setItem('theme', 'dark');
       }
-      if (animId === null) { drawArc(null); updateLEDs(1); }
+      if (animId === null) {
+        drawArc(null);
+        updateLEDs(1);
+        drawBoxPlot();
+      }
     }
 
     themeToggle.addEventListener('click', () => {
-      setTheme(!document.body.classList.contains('light-theme'));
+      setTheme(!body.classList.contains('light-theme'));
     });
-
-    if (localStorage.getItem('theme') === 'light') setTheme(true);
 
     // ─── LED setup ─────────────────────────────────────────────────────────────────
     const LED_COLS = 21;
     const LED_ROWS = 8;
-    const LED_COLORS_DARK = [];
-    const LED_COLORS_LIT = [];
 
     function buildLEDs() {
       ledMeter.innerHTML = '';
@@ -731,28 +863,22 @@
     buildLEDs();
 
     function ledColor(col) {
-      const s = getComputedStyle(document.body);
-      const greenLit  = s.getPropertyValue('--green').trim();
-      const greenDark = s.getPropertyValue('--led-green-dark').trim();
-      const yellowLit  = s.getPropertyValue('--yellow').trim();
-      const yellowDark = s.getPropertyValue('--led-yellow-dark').trim();
-      const redLit  = s.getPropertyValue('--red').trim();
-      const redDark = s.getPropertyValue('--led-red-dark').trim();
-      // 0..6 green, 7..13 yellow, 14..20 red
-      if (col <= 6)  return { lit: greenLit,  dark: greenDark,  glow: 'rgba(16,185,129,0.4)' };
-      if (col <= 13) return { lit: yellowLit, dark: yellowDark, glow: 'rgba(245,158,11,0.4)' };
-      return               { lit: redLit,    dark: redDark,    glow: 'rgba(239,68,68,0.4)' };
+      const style = getComputedStyle(document.body);
+      const greenLit = style.getPropertyValue('--green').trim();
+      const greenDark = style.getPropertyValue('--led-green-dark').trim();
+      const yellowLit = style.getPropertyValue('--yellow').trim();
+      const yellowDark = style.getPropertyValue('--led-yellow-dark').trim();
+      const redLit = style.getPropertyValue('--red').trim();
+      const redDark = style.getPropertyValue('--led-red-dark').trim();
+
+      if (col <= 6) return { lit: greenLit, dark: greenDark, glow: 'rgba(16,185,129,0.3)' };
+      if (col <= 13) return { lit: yellowLit, dark: yellowDark, glow: 'rgba(245,158,11,0.3)' };
+      return { lit: redLit, dark: redDark, glow: 'rgba(239,68,68,0.3)' };
     }
 
     function updateLEDs(ratio) {
-      // ratio: 0 = all green (warm), middle = balanced, high = red (bright)
-      // map ratio to 0..1 where 0.5 = balanced (col 10 center)
-      // ratio > 1 -> warm side (left), ratio < 1 -> bright side (right)
-      // Use log scale: log2(ratio): -3..+3 mapped to 0..20
       const logR = Math.log2(Math.max(0.1, Math.min(ratio, 10)));
-      // logR: positive = warm, negative = bright
-      // center at col 10, warm goes left (col<10), bright goes right (col>10)
-      const level = Math.round(10 + logR * (10 / 3)); // clamp 0..20
+      const level = Math.round(10 + logR * (10 / 3));
       const lit = Math.max(0, Math.min(20, level));
 
       for (let r = 0; r < LED_ROWS; r++) {
@@ -760,18 +886,12 @@
           const el = document.getElementById(`led-${r}-${c}`);
           if (!el) continue;
           const { lit: litColor, dark, glow } = ledColor(c);
-          // determine which LEDs are on: everything from center (10) to lit
-          // if lit < 10 (warm): cols 0..lit are on
-          // if lit > 10 (bright): cols lit..20 are on
-          // if lit == 10: just center on
           let on = false;
           if (lit <= 10) {
             on = (c >= lit && c <= 10);
           } else {
             on = (c >= 10 && c <= lit);
           }
-          // Vertical fade: top rows need more signal
-          const rowThreshold = Math.floor(LED_ROWS * 0.5);
           const levelStrength = Math.abs(lit - 10);
           const rowOn = on && (r < Math.min(LED_ROWS, Math.ceil(levelStrength * LED_ROWS / 10) + 1));
           el.style.background = rowOn ? litColor : dark;
@@ -780,71 +900,33 @@
       }
     }
 
-    // ─── Start mic ─────────────────────────────────────────────────────────────────
     // ─── Audio Input Handling ──────────────────────────────────────────────────────
     const audioInputSelect = document.getElementById('audioInputSelect');
     let currentDeviceId = 'default';
 
     async function getAudioDevices() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-        statusText.textContent = 'Media Devices API not supported (needs HTTPS/localhost?)';
-        return;
-      }
-
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const audioInputs = devices.filter(device => device.kind === 'audioinput');
-
-        // Debug info
-        console.log("Found devices:", audioInputs);
-
-        if (audioInputs.length === 0) {
-          // If no devices found/enumerated
-          const option = document.createElement('option');
-          option.text = "No devices found";
-          audioInputSelect.appendChild(option);
-          return;
-        }
-
-        // Save current selection if possible
-        const currentVal = audioInputSelect.value;
-
         audioInputSelect.innerHTML = '';
-
-        // Always add a generic "Default" option at the top
         const defOpt = document.createElement('option');
         defOpt.value = 'default';
         defOpt.text = 'Default (System)';
         audioInputSelect.appendChild(defOpt);
-
         audioInputs.forEach(device => {
-          // Avoid adding "Default" twice if it shows up in enumeration with ID 'default'
           if (device.deviceId === 'default') return;
-
           const option = document.createElement('option');
           option.value = device.deviceId;
-          // If label is empty (permission issue), show generic name
           option.text = device.label || `Microphone ${device.deviceId.substr(0, 4)}...`;
           audioInputSelect.appendChild(option);
         });
-
-        // Restore selection if it still exists
-        if (currentVal !== 'default' && Array.from(audioInputSelect.options).some(opt => opt.value === currentVal)) {
-          audioInputSelect.value = currentVal;
-        } else {
-          audioInputSelect.value = 'default';
-        }
-
-      } catch (e) {
-        console.error("Error enumerating devices:", e);
-        statusText.textContent = 'Enum error: ' + e.message;
-      }
+      } catch (e) { console.error(e); }
     }
 
     audioInputSelect.addEventListener('change', (e) => {
       currentDeviceId = e.target.value;
       if (micStream) {
-        // If running, restart with new device
         stopAnalysis();
         btnStart.click();
       }
@@ -852,87 +934,132 @@
 
     // ─── Start mic ─────────────────────────────────────────────────────────────────
     btnStart.addEventListener('click', async () => {
+      if (micStream) return;
       btnStart.disabled = true;
       statusText.textContent = 'Requesting access...';
-
       try {
-        if (!micStream) {
-          const constraints = {
-            audio: {
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false,
-              channelCount: 1
-            },
-            video: false
-          };
-
-          // Only apply deviceId if it's NOT default
-          if (currentDeviceId && currentDeviceId !== 'default') {
-            constraints.audio.deviceId = { exact: currentDeviceId };
-          }
-
-          micStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-          // Permission granted, refresh list to get labels
-          await getAudioDevices();
-        }
-
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = fftSize;
-        analyser.smoothingTimeConstant = smoothing;
-
-        const source = audioCtx.createMediaStreamSource(micStream);
-        source.connect(analyser);
-
+        const constraints = {
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+          video: false
+        };
+        if (currentDeviceId && currentDeviceId !== 'default') constraints.audio.deviceId = { exact: currentDeviceId };
+        micStream = await navigator.mediaDevices.getUserMedia(constraints);
+        await getAudioDevices();
+        initAudio();
+        sourceNode = audioCtx.createMediaStreamSource(micStream);
+        sourceNode.connect(analyser);
         btnStart.style.display = 'none';
         btnStop.style.display = '';
         statusDot.classList.add('active');
-        statusText.textContent = 'Analyzing…';
-
+        statusText.textContent = 'Mic Active';
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
         loop();
       } catch (e) {
         statusText.textContent = 'Mic error: ' + e.message;
-        console.error(e);
         btnStart.disabled = false;
       }
     });
 
-    // Initial device list fetch
-    // Note: Labels might be empty until user grants permission via "Start"
-    getAudioDevices();
+    // ─── File Handling ─────────────────────────────────────────────────────────────
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return "0:00";
+      const min = Math.floor(seconds / 60);
+      const sec = Math.floor(seconds % 60);
+      return `${min}:${sec.toString().padStart(2, '0')}`;
+    }
 
+    audioElement.addEventListener('loadedmetadata', () => {
+      seekBar.max = audioElement.duration;
+      durationTimeText.textContent = formatTime(audioElement.duration);
+    });
+
+    audioElement.addEventListener('timeupdate', () => {
+      if (!isSeeking) {
+        seekBar.value = audioElement.currentTime;
+        currentTimeText.textContent = formatTime(audioElement.currentTime);
+      }
+    });
+
+    seekBar.addEventListener('mousedown', () => { isSeeking = true; });
+    seekBar.addEventListener('mouseup', () => { isSeeking = false; });
+    seekBar.addEventListener('input', () => {
+      audioElement.currentTime = seekBar.value;
+      currentTimeText.textContent = formatTime(audioElement.currentTime);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        stopAnalysis();
+        const url = URL.createObjectURL(file);
+        audioElement.src = url;
+        audioElement.load();
+        playbackRow.style.display = 'flex';
+        btnPlayFile.style.display = '';
+        btnStopFile.style.display = 'none';
+        statusText.textContent = 'File Loaded: ' + file.name;
+      }
+    });
+
+    btnPlayFile.addEventListener('click', async () => {
+      try {
+        initAudio();
+        if (!fileSourceNode) {
+          fileSourceNode = audioCtx.createMediaElementSource(audioElement);
+          fileSourceNode.connect(analyser);
+          analyser.connect(audioCtx.destination);
+        }
+        sourceNode = fileSourceNode;
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+        audioElement.play();
+        btnPlayFile.style.display = 'none';
+        btnStopFile.style.display = '';
+        statusDot.classList.add('active');
+        statusText.textContent = 'Playing File';
+        loop();
+      } catch (e) { statusText.textContent = 'Play error: ' + e.message; }
+    });
+
+    btnStopFile.addEventListener('click', () => {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      stopAnalysis();
+    });
+
+    audioElement.addEventListener('ended', () => { stopAnalysis(); });
     btnStop.addEventListener('click', stopAnalysis);
 
     function stopAnalysis() {
-      if (animId) cancelAnimationFrame(animId);
-      // Do NOT stop the tracks if we want to keep permission for device switching?
-      // Actually, stopping tracks releases the device. We probably want that.
-      // But updating the list requires active permission for labels in some browsers?
-      // Usually once granted for origin, it persists for session.
-      if (micStream) micStream.getTracks().forEach(t => t.stop());
-      if (audioCtx) audioCtx.close();
-      animId = micStream = audioCtx = analyser = null;
-
+      if (animId) { cancelAnimationFrame(animId); animId = null; }
+      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+      if (audioElement) audioElement.pause();
+      if (sourceNode && sourceNode !== fileSourceNode) sourceNode.disconnect();
+      sourceNode = null;
       btnStop.style.display = 'none';
       btnStart.style.display = '';
       btnStart.disabled = false;
+      btnStopFile.style.display = 'none';
+
+      const hasFile = audioElement.src && audioElement.src !== window.location.href && audioElement.src !== '';
+      if (hasFile) {
+        btnPlayFile.style.display = '';
+        playbackRow.style.display = 'flex';
+        statusText.textContent = 'File Ready';
+      } else {
+        playbackRow.style.display = 'none';
+        statusText.textContent = 'Stopped';
+      }
+
       statusDot.classList.remove('active');
-      statusText.textContent = 'Stopped';
       clearUI();
     }
 
     function clearUI() {
       ratioNum.textContent = '—';
-      barLow.style.width = '0%';
-      barHigh.style.width = '0%';
-      barLowVal.textContent = '— dB';
-      barHighVal.textContent = '— dB';
-      peaksDisp.innerHTML = '';
-      qualLabel.textContent = '—';
-      updateLEDs(1);
-      drawArc(null);
+      barLow.style.width = '0%'; barHigh.style.width = '0%';
+      barLowVal.textContent = '— dB'; barHighVal.textContent = '— dB';
+      peaksDisp.innerHTML = ''; qualLabel.textContent = '—';
+      updateLEDs(1); drawArc(null);
       specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
       resetSmoothRatio();
       resetHistory();
@@ -943,13 +1070,11 @@
       fftSize = parseInt(e.target.value);
       if (analyser) analyser.fftSize = fftSize;
     });
-
     document.getElementById('smoothing').addEventListener('input', e => {
       smoothing = parseFloat(e.target.value);
       document.getElementById('smoothingVal').textContent = smoothing.toFixed(2);
       if (analyser) analyser.smoothingTimeConstant = smoothing;
     });
-
     document.getElementById('floorDb').addEventListener('input', e => {
       floorDb = parseInt(e.target.value);
       document.getElementById('floorDbVal').textContent = floorDb;
@@ -957,348 +1082,32 @@
 
     // ─── Main loop ─────────────────────────────────────────────────────────────────
     function loop() {
+      if (!analyser) return;
       animId = requestAnimationFrame(loop);
-
       const bufLen = analyser.frequencyBinCount;
       const data = new Float32Array(bufLen);
-      analyser.getFloatFrequencyData(data); // dB values
-
+      analyser.getFloatFrequencyData(data);
       const sampleRate = audioCtx.sampleRate;
       const binHz = sampleRate / analyser.fftSize;
-
       resizeCanvas();
       drawSpectrum(data, binHz);
-
       const { lowPeaks, highPeaks, lowPower, highPower, ratio } = computeRatio(data, binHz);
       updateRatioUI(ratio, lowPower, highPower, lowPeaks, highPeaks);
     }
 
-    // ─── Resize canvas ──────────────────────────────────────────────────────────────
     function resizeCanvas() {
-      const w = specCanvas.offsetWidth;
-      const h = specCanvas.offsetHeight;
-      if (specCanvas.width !== w || specCanvas.height !== h) {
-        specCanvas.width = w;
-        specCanvas.height = h;
-      }
-    }
-
-    // ─── Spectrum drawing ──────────────────────────────────────────────────────────
-    const SPEC_MAX_HZ = 8000;
-    let peakHold = null;
-    let peakDecay = null;
-    let lastPeakTime = null;
-
-    function drawSpectrum(data, binHz) {
-      const W = specCanvas.width;
-      const H = specCanvas.height;
-      const ctx = specCtx;
-
-      ctx.clearRect(0, 0, W, H);
-
-      // Background grid
-      ctx.strokeStyle = 'rgba(30,45,69,0.8)';
-      ctx.lineWidth = 1;
-
-      // Horizontal grid lines (dB)
-      const dbRange = Math.abs(floorDb); // 0 to floorDb
-      for (let db = 0; db >= floorDb; db -= 10) {
-        const y = H * (db / floorDb);
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(100,116,139,0.6)';
-        ctx.font = '9px monospace';
-        ctx.fillText(db + ' dB', 2, y - 2);
-      }
-
-      // Vertical frequency markers
-      const freqMarks = [200, 500, 1000, 2000, 3000, 4000, 5000, 6000, 8000];
-      freqMarks.forEach(f => {
-        const x = freqToX(f, binHz, data.length, W);
-        if (x < 0 || x > W) return;
-        ctx.strokeStyle = f >= HIGH_FREQ_MIN && f <= HIGH_FREQ_MAX
-          ? 'rgba(168,85,247,0.25)' : 'rgba(30,45,69,0.8)';
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-        ctx.fillStyle = 'rgba(100,116,139,0.6)';
-        ctx.font = '9px monospace';
-        const label = f >= 1000 ? (f / 1000) + 'k' : f;
-        ctx.fillText(label, x + 2, H - 4);
-      });
-
-      // High zone shading
-      const xHL = freqToX(HIGH_FREQ_MIN, binHz, data.length, W);
-      const xHR = freqToX(HIGH_FREQ_MAX, binHz, data.length, W);
-      ctx.fillStyle = 'rgba(124,58,237,0.06)';
-      ctx.fillRect(xHL, 0, xHR - xHL, H);
-
-      // Peak hold
-      const now = Date.now();
-      if (!peakHold) { peakHold = new Float32Array(W); peakDecay = new Float32Array(W); lastPeakTime = now; }
-
-      // Gradient fill under curve
-      const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, 'rgba(0,212,255,0.7)');
-      grad.addColorStop(0.5, 'rgba(99,102,241,0.3)');
-      grad.addColorStop(1, 'rgba(0,212,255,0.02)');
-
-      ctx.beginPath();
-      ctx.moveTo(0, H);
-
-      for (let x = 0; x < W; x++) {
-        const freq = xToFreq(x, binHz, data.length, W);
-        const bin = Math.round(freq / binHz);
-        const db = (bin >= 0 && bin < data.length) ? data[bin] : floorDb;
-        const y = dbToY(db, H);
-        if (x === 0) ctx.lineTo(0, y); else ctx.lineTo(x, y);
-
-        // peak hold
-        if (db > peakHold[x]) { peakHold[x] = db; peakDecay[x] = 0; }
-      }
-
-      ctx.lineTo(W, H);
-      ctx.closePath();
-      ctx.fillStyle = grad;
-      ctx.fill();
-
-      // Spectrum line
-      ctx.beginPath();
-      ctx.strokeStyle = '#00d4ff';
-      ctx.lineWidth = 1.5;
-      ctx.shadowColor = 'rgba(0,212,255,0.4)';
-      ctx.shadowBlur = 4;
-      for (let x = 0; x < W; x++) {
-        const freq = xToFreq(x, binHz, data.length, W);
-        const bin = Math.round(freq / binHz);
-        const db = (bin >= 0 && bin < data.length) ? data[bin] : floorDb;
-        const y = dbToY(db, H);
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Peak hold line
-      ctx.strokeStyle = 'rgba(255,107,53,0.7)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      const dt = (now - lastPeakTime) / 1000;
-      lastPeakTime = now;
-      for (let x = 0; x < W; x++) {
-        peakDecay[x] += dt * 8; // dB/s decay
-        peakHold[x] = Math.max(peakHold[x] - peakDecay[x] * dt, floorDb);
-        const y = dbToY(peakHold[x], H);
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-
-    function freqToX(freq, binHz, bufLen, W) {
-      // Use log-ish scale: linear up to SPEC_MAX_HZ mapped to full width
-      return (freq / SPEC_MAX_HZ) * W;
-    }
-
-    function xToFreq(x, binHz, bufLen, W) {
-      return (x / W) * SPEC_MAX_HZ;
-    }
-
-    function dbToY(db, H) {
-      const clamped = Math.max(floorDb, Math.min(0, db));
-      return H * (1 - (clamped - floorDb) / (-floorDb));
-    }
-
-    // ─── Peak detection ────────────────────────────────────────────────────────────
-    function findPeaks(data, binHz, freqMin, freqMax, minDb) {
-      const binMin = Math.ceil(freqMin / binHz);
-      const binMax = Math.floor(freqMax / binHz);
-      const peaks = [];
-
-      for (let i = binMin + 1; i < binMax - 1 && i < data.length - 1; i++) {
-        if (data[i] > minDb &&
-          data[i] > data[i - 1] &&
-          data[i] > data[i + 1]) {
-          peaks.push({ bin: i, freq: i * binHz, db: data[i] });
-        }
-      }
-      // Sort by power descending
-      peaks.sort((a, b) => b.db - a.db);
-      return peaks;
-    }
-
-    function dbToPower(db) {
-      return Math.pow(10, db / 10);
-    }
-
-    function powerToDb(p) {
-      return 10 * Math.log10(p);
-    }
-
-    function computeRatio(data, binHz) {
-      // Low peaks: fundamental + harmonics, search 80Hz – 1500Hz
-      const lowPeaks = findPeaks(data, binHz, 80, 1500, MIN_PEAK_DB).slice(0, N_LOW_PEAKS);
-      // High peaks: 2kHz – 6kHz
-      const highPeaks = findPeaks(data, binHz, HIGH_FREQ_MIN, HIGH_FREQ_MAX, MIN_PEAK_DB).slice(0, 6);
-
-      const lowPower = lowPeaks.reduce((s, p) => s + dbToPower(p.db), 0);
-      const highPower = highPeaks.reduce((s, p) => s + dbToPower(p.db), 0);
-
-      const ratio = lowPower > 0 ? highPower / lowPower : null;
-
-      return { lowPeaks, highPeaks, lowPower, highPower, ratio };
-    }
-
-    // ─── UI update ─────────────────────────────────────────────────────────────────
-    let smoothRatio = null;
-    const RATIO_SMOOTH = 0.1;
-
-    function resetSmoothRatio() { smoothRatio = null; }
-
-    function updateRatioUI(ratio, lowPower, highPower, lowPeaks, highPeaks) {
-      if (ratio === null) return;
-
-      // Smooth ratio
-      smoothRatio = smoothRatio === null ? ratio : smoothRatio + RATIO_SMOOTH * (ratio - smoothRatio);
-
-      // Number
-      ratioNum.textContent = smoothRatio.toFixed(2);
-
-      // Color
-      const logR = Math.log2(smoothRatio);
-      if (logR > 1) ratioNum.style.color = '#ef4444';        // very bright (red)
-      else if (logR > 0) ratioNum.style.color = '#f59e0b';   // balanced-bright
-      else if (logR > -1) ratioNum.style.color = '#10b981';  // balanced-warm (green)
-      else ratioNum.style.color = '#3b82f6';                 // warm (blue)
-
-      // Arc
-      drawArc(smoothRatio);
-
-      // LED
-      updateLEDs(smoothRatio);
-
-      // Bars: map power to 0-100% relative to some reference
-      const REF_POWER = dbToPower(-30); // reference power for 100%
-      const lowPct = Math.min(100, (lowPower / REF_POWER) * 100);
-      const highPct = Math.min(100, (highPower / REF_POWER) * 100);
-      barLow.style.width = lowPct + '%';
-      barHigh.style.width = highPct + '%';
-      barLowVal.textContent = powerToDb(lowPower).toFixed(1) + ' dB';
-      barHighVal.textContent = powerToDb(highPower).toFixed(1) + ' dB';
-
-      // Peak chips
-      peaksDisp.innerHTML = '';
-      lowPeaks.forEach((p, i) => {
-        const chip = document.createElement('div');
-        chip.className = 'peak-chip';
-        chip.textContent = `P${i + 1}: ${Math.round(p.freq)}Hz (${p.db.toFixed(1)}dB)`;
-        peaksDisp.appendChild(chip);
-      });
-      highPeaks.slice(0, 3).forEach(p => {
-        const chip = document.createElement('div');
-        chip.className = 'peak-chip high';
-        chip.textContent = `${(p.freq / 1000).toFixed(2)}kHz (${p.db.toFixed(1)}dB)`;
-        peaksDisp.appendChild(chip);
-      });
-
-      // Box plot sample
-      addRatioSample(ratio);
-      drawBoxPlot();
-
-      // Quality label
-      const logSmooth = Math.log2(smoothRatio);
-      if (logSmooth > 2) qualLabel.textContent = 'Very Bright / Brilliance Dominant';
-      else if (logSmooth > 0.5) qualLabel.textContent = 'Bright & Forward';
-      else if (logSmooth > -0.5) qualLabel.textContent = 'Well Balanced';
-      else if (logSmooth > -1.5) qualLabel.textContent = 'Warm & Full';
-      else qualLabel.textContent = 'Very Warm / Chest Voice Dominant';
-    }
-
-    // ─── Arc Meter drawing ─────────────────────────────────────────────────────────
-    function drawArc(ratio) {
-      const W = 200, H = 110;
-      const cx = 100, cy = 105;
-      const r = 88;
-      const ctx = arcCtx;
-
-      ctx.clearRect(0, 0, W, H);
-
-      // Background arc
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, Math.PI, 0, false);
-      ctx.lineWidth = 16;
-      ctx.strokeStyle = '#0d1424';
-      ctx.stroke();
-
-      // Tick marks
-      for (let i = 0; i <= 10; i++) {
-        const ang = Math.PI + (i / 10) * Math.PI;
-        const x1 = cx + (r - 12) * Math.cos(ang);
-        const y1 = cy + (r - 12) * Math.sin(ang);
-        const x2 = cx + (r - 4) * Math.cos(ang);
-        const y2 = cy + (r - 4) * Math.sin(ang);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
-        ctx.lineWidth = i === 5 ? 2.5 : 1;
-        ctx.strokeStyle = i === 5 ? '#64748b' : '#1e2d45';
-        ctx.stroke();
-      }
-
-      if (ratio === null) return;
-
-      // Map ratio to angle (log scale, -3..+3 log2 -> 0..PI)
-      const logR = Math.log2(Math.max(0.1, Math.min(ratio, 10)));
-      const t = Math.max(0, Math.min(1, 0.5 + logR / 6)); // 0=warm/left, 1=bright/right
-      const needAng = Math.PI + t * Math.PI;
-
-      // Colored arc
-      const arcGrad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
-      arcGrad.addColorStop(0, '#3b82f6'); // warm (blue)
-      arcGrad.addColorStop(0.35, '#10b981'); // balanced-warm
-      arcGrad.addColorStop(0.5, '#10b981'); // balanced
-      arcGrad.addColorStop(0.65, '#f59e0b'); // balanced-bright
-      arcGrad.addColorStop(1, '#ef4444'); // bright
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, Math.PI, needAng, false);
-      ctx.lineWidth = 14;
-      ctx.strokeStyle = arcGrad;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-      // Needle
-      const nx = cx + (r - 8) * Math.cos(needAng);
-      const ny = cy + (r - 8) * Math.sin(needAng);
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(nx, ny);
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineCap = 'round';
-      ctx.shadowColor = 'rgba(255,255,255,0.6)';
-      ctx.shadowBlur = 6;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Center dot
-      ctx.beginPath();
-      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-
-      // Labels
-      ctx.font = '9px monospace';
-      ctx.fillStyle = '#3b82f6';
-      ctx.fillText('WARM', cx - r + 2, cy - 4);
-      ctx.fillStyle = '#ef4444';
-      ctx.textAlign = 'right';
-      ctx.fillText('BRIGHT', cx + r - 2, cy - 4);
-      ctx.textAlign = 'left';
+      const w = specCanvas.offsetWidth; const h = specCanvas.offsetHeight;
+      if (specCanvas.width !== w || specCanvas.height !== h) { specCanvas.width = w; specCanvas.height = h; }
+      const bw = boxCanvas.offsetWidth; const bh = boxCanvas.offsetHeight;
+      if (boxCanvas.width !== bw || boxCanvas.height !== bh) { boxCanvas.width = bw; boxCanvas.height = bh; }
     }
 
     // ─── Box Plot ──────────────────────────────────────────────────────────────────
-    const ratioHistory = [];   // stores log2(ratio) values
-    const ratioJitter  = [];   // pre-computed y-jitter for dot scatter
-    const MAX_HISTORY  = 7200; // ~2 min at 60fps
+    const MAX_HISTORY = 7200; // ~2 min at 60fps
     const BOX_LOG_RANGE = 4;   // x-axis: log2(ratio) ± 4
 
     function addRatioSample(ratio) {
+      if (ratio === null) return;
       ratioHistory.push(Math.log2(ratio));
       ratioJitter.push(Math.random() - 0.5);
       if (ratioHistory.length > MAX_HISTORY) {
@@ -1310,24 +1119,23 @@
     function resetHistory() {
       ratioHistory.length = 0;
       ratioJitter.length = 0;
-      document.getElementById('bpP5').textContent     = '5th: —';
-      document.getElementById('bpQ1').textContent     = 'Q1: —';
+      document.getElementById('bpP5').textContent = '5th: —';
+      document.getElementById('bpQ1').textContent = 'Q1: —';
       document.getElementById('bpMedian').textContent = 'Median: —';
-      document.getElementById('bpMean').textContent   = 'Mean: —';
-      document.getElementById('bpQ3').textContent     = 'Q3: —';
-      document.getElementById('bpP95').textContent    = '95th: —';
-      document.getElementById('bpN').textContent      = 'N = 0';
-      const bc = document.getElementById('boxCanvas');
-      if (bc) { const c = bc.getContext('2d'); c.clearRect(0, 0, bc.width, bc.height); }
+      document.getElementById('bpMean').textContent = 'Mean: —';
+      document.getElementById('bpQ3').textContent = 'Q3: —';
+      document.getElementById('bpP95').textContent = '95th: —';
+      document.getElementById('bpN').textContent = 'N = 0';
+      boxCtx.clearRect(0, 0, boxCanvas.width, boxCanvas.height);
     }
 
-    document.getElementById('btnResetHistory').addEventListener('click', resetHistory);
+    btnResetHistory.addEventListener('click', resetHistory);
 
     function pctile(sorted, p) {
       if (sorted.length === 0) return 0;
       const idx = (p / 100) * (sorted.length - 1);
-      const lo  = Math.floor(idx);
-      const hi  = Math.ceil(idx);
+      const lo = Math.floor(idx);
+      const hi = Math.ceil(idx);
       return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
     }
 
@@ -1336,18 +1144,15 @@
     }
 
     function drawBoxPlot() {
-      const canvas = document.getElementById('boxCanvas');
-      if (!canvas) return;
-      const W = canvas.offsetWidth, H = canvas.offsetHeight || 110;
-      if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
-      const ctx = canvas.getContext('2d');
+      const W = boxCanvas.width, H = boxCanvas.height;
+      const ctx = boxCtx;
       ctx.clearRect(0, 0, W, H);
 
       // Colored background gradient
       const bgGrad = ctx.createLinearGradient(0, 0, W, 0);
-      bgGrad.addColorStop(0,    'rgba(59,130,246,0.07)');
-      bgGrad.addColorStop(0.5,  'rgba(16,185,129,0.05)');
-      bgGrad.addColorStop(1,    'rgba(239,68,68,0.07)');
+      bgGrad.addColorStop(0, 'rgba(59,130,246,0.07)');
+      bgGrad.addColorStop(0.5, 'rgba(16,185,129,0.05)');
+      bgGrad.addColorStop(1, 'rgba(239,68,68,0.07)');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, W, H);
 
@@ -1356,130 +1161,271 @@
       ticks.forEach(t => {
         const x = logToX(t, W);
         ctx.strokeStyle = t === 0 ? 'rgba(100,116,139,0.55)' : 'rgba(30,45,69,0.9)';
-        ctx.lineWidth   = t === 0 ? 1.5 : 0.8;
+        ctx.lineWidth = t === 0 ? 1.5 : 0.8;
         ctx.setLineDash(t === 0 ? [4, 4] : []);
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
         ctx.setLineDash([]);
-        // ratio value label
         const rv = Math.pow(2, t);
         const label = rv >= 10 ? rv.toFixed(0) : rv < 0.2 ? rv.toFixed(2) : rv.toFixed(1);
-        ctx.fillStyle  = t === 0 ? 'rgba(148,163,184,0.8)' : 'rgba(100,116,139,0.55)';
-        ctx.font       = '8px monospace';
-        ctx.textAlign  = 'center';
+        ctx.fillStyle = t === 0 ? 'rgba(148,163,184,0.8)' : 'rgba(100,116,139,0.55)';
+        ctx.font = '8px monospace';
+        ctx.textAlign = 'center';
         ctx.fillText(label, x, H - 3);
       });
       ctx.textAlign = 'left';
 
       const LABEL_H = 14;
-      const plotH   = H - LABEL_H;
-      const boxY1   = plotH * 0.18;
-      const boxY2   = plotH * 0.72;
-      const midY    = (boxY1 + boxY2) / 2;
+      const plotH = H - LABEL_H;
+      const boxY1 = plotH * 0.18;
+      const boxY2 = plotH * 0.72;
+      const midY = (boxY1 + boxY2) / 2;
 
       if (ratioHistory.length < 5) {
-        ctx.fillStyle  = 'rgba(100,116,139,0.45)';
-        ctx.font       = '11px system-ui';
-        ctx.textAlign  = 'center';
+        ctx.fillStyle = 'rgba(100,116,139,0.45)';
+        ctx.font = '11px system-ui';
+        ctx.textAlign = 'center';
         ctx.fillText('Collecting data… (need 5+ samples)', W / 2, midY + 4);
-        ctx.textAlign  = 'left';
+        ctx.textAlign = 'left';
         return;
       }
 
       const sorted = [...ratioHistory].sort((a, b) => a - b);
-      const p5   = pctile(sorted, 5);
-      const q1   = pctile(sorted, 25);
-      const med  = pctile(sorted, 50);
-      const q3   = pctile(sorted, 75);
-      const p95  = pctile(sorted, 95);
+      const p5 = pctile(sorted, 5);
+      const q1 = pctile(sorted, 25);
+      const med = pctile(sorted, 50);
+      const q3 = pctile(sorted, 75);
+      const p95 = pctile(sorted, 95);
       const mean = ratioHistory.reduce((a, b) => a + b, 0) / ratioHistory.length;
 
       // Dot scatter (recent 180 samples)
       const recent = ratioHistory.slice(-180);
       const recentJ = ratioJitter.slice(-180);
       recent.forEach((v, i) => {
-        const x     = logToX(v, W);
+        const x = logToX(v, W);
         const alpha = (i / recent.length) * 0.45 + 0.06;
-        const dotY  = midY + recentJ[i] * (boxY2 - boxY1) * 0.55;
+        const dotY = midY + recentJ[i] * (boxY2 - boxY1) * 0.55;
         ctx.fillStyle = `rgba(0,212,255,${alpha.toFixed(2)})`;
-        ctx.beginPath();
-        ctx.arc(x, dotY, 2, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(x, dotY, 2, 0, Math.PI * 2); ctx.fill();
       });
 
-      // Whiskers (5th–95th)
+      // Whiskers
       ctx.strokeStyle = 'rgba(148,163,184,0.55)';
-      ctx.lineWidth   = 1.5;
+      ctx.lineWidth = 1.5;
       ctx.setLineDash([3, 3]);
       [[p5, q1], [q3, p95]].forEach(([a, b]) => {
-        ctx.beginPath();
-        ctx.moveTo(logToX(a, W), midY);
-        ctx.lineTo(logToX(b, W), midY);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(logToX(a, W), midY); ctx.lineTo(logToX(b, W), midY); ctx.stroke();
       });
       ctx.setLineDash([]);
-      // Whisker end caps
       [p5, p95].forEach(v => {
         const x = logToX(v, W);
-        ctx.beginPath();
-        ctx.moveTo(x, boxY1 + (boxY2 - boxY1) * 0.22);
-        ctx.lineTo(x, boxY2 - (boxY2 - boxY1) * 0.22);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, boxY1 + (boxY2 - boxY1) * 0.22); ctx.lineTo(x, boxY2 - (boxY2 - boxY1) * 0.22); ctx.stroke();
       });
 
       // IQR Box
       const bx = logToX(q1, W);
       const bw = logToX(q3, W) - bx;
       const boxFill = ctx.createLinearGradient(bx, 0, bx + bw, 0);
-      boxFill.addColorStop(0,   'rgba(59,130,246,0.22)');
+      boxFill.addColorStop(0, 'rgba(59,130,246,0.22)');
       boxFill.addColorStop(0.5, 'rgba(16,185,129,0.22)');
-      boxFill.addColorStop(1,   'rgba(239,68,68,0.22)');
-      ctx.fillStyle   = boxFill;
+      boxFill.addColorStop(1, 'rgba(239,68,68,0.22)');
+      ctx.fillStyle = boxFill;
       ctx.strokeStyle = 'rgba(148,163,184,0.5)';
-      ctx.lineWidth   = 1.5;
+      ctx.lineWidth = 1.5;
       ctx.fillRect(bx, boxY1, bw, boxY2 - boxY1);
       ctx.strokeRect(bx, boxY1, bw, boxY2 - boxY1);
 
-      // Median line
+      // Median
       const mx = logToX(med, W);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth   = 2.5;
-      ctx.shadowColor = 'rgba(255,255,255,0.4)';
-      ctx.shadowBlur  = 4;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.shadowBlur = 4; ctx.shadowColor = 'rgba(255,255,255,0.4)';
       ctx.beginPath(); ctx.moveTo(mx, boxY1 - 3); ctx.lineTo(mx, boxY2 + 3); ctx.stroke();
-      ctx.shadowBlur  = 0;
+      ctx.shadowBlur = 0;
 
-      // Mean dot
-      ctx.fillStyle = '#f59e0b';
-      ctx.shadowColor = 'rgba(245,158,11,0.6)';
-      ctx.shadowBlur  = 5;
+      // Mean
+      ctx.fillStyle = '#f59e0b'; ctx.shadowBlur = 5; ctx.shadowColor = 'rgba(245,158,11,0.6)';
       ctx.beginPath(); ctx.arc(logToX(mean, W), midY, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.shadowBlur  = 0;
+      ctx.shadowBlur = 0;
 
-      // Current value tick
+      // Current
       if (smoothRatio !== null) {
         const cx2 = logToX(Math.log2(smoothRatio), W);
-        ctx.strokeStyle = 'rgba(0,212,255,0.9)';
-        ctx.lineWidth   = 2;
-        ctx.shadowColor = 'rgba(0,212,255,0.5)';
-        ctx.shadowBlur  = 6;
+        ctx.strokeStyle = 'rgba(0,212,255,0.9)'; ctx.lineWidth = 2; ctx.shadowBlur = 6; ctx.shadowColor = 'rgba(0,212,255,0.5)';
         ctx.beginPath(); ctx.moveTo(cx2, boxY1 - 6); ctx.lineTo(cx2, boxY2 + 6); ctx.stroke();
-        ctx.shadowBlur  = 0;
+        ctx.shadowBlur = 0;
       }
 
-      // Stats row
+      // Stats
       const fmt = v => Math.pow(2, v).toFixed(2);
-      document.getElementById('bpP5').textContent     = `5th: ${fmt(p5)}`;
-      document.getElementById('bpQ1').textContent     = `Q1: ${fmt(q1)}`;
+      document.getElementById('bpP5').textContent = `5th: ${fmt(p5)}`;
+      document.getElementById('bpQ1').textContent = `Q1: ${fmt(q1)}`;
       document.getElementById('bpMedian').textContent = `Median: ${fmt(med)}`;
-      document.getElementById('bpMean').textContent   = `Mean: ${fmt(mean)}`;
-      document.getElementById('bpQ3').textContent     = `Q3: ${fmt(q3)}`;
-      document.getElementById('bpP95').textContent    = `95th: ${fmt(p95)}`;
-      document.getElementById('bpN').textContent      = `N = ${ratioHistory.length}`;
+      document.getElementById('bpMean').textContent = `Mean: ${fmt(mean)}`;
+      document.getElementById('bpQ3').textContent = `Q3: ${fmt(q3)}`;
+      document.getElementById('bpP95').textContent = `95th: ${fmt(p95)}`;
+      document.getElementById('bpN').textContent = `N = ${ratioHistory.length}`;
     }
 
-    // Initial render
+    // ─── Spectrum drawing ──────────────────────────────────────────────────────────
+    const SPEC_MAX_HZ = 8000;
+    let peakHold = null; let peakDecay = null; let lastPeakTime = null;
+
+    function drawSpectrum(data, binHz) {
+      const W = specCanvas.width; const H = specCanvas.height; const ctx = specCtx;
+      const style = getComputedStyle(document.body);
+      const gridColor = style.getPropertyValue('--grid-color').trim();
+      const textMuted = style.getPropertyValue('--text-muted').trim();
+      const accent = style.getPropertyValue('--accent').trim();
+      ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = gridColor; ctx.lineWidth = 1;
+      for (let db = 0; db >= floorDb; db -= 10) {
+        const y = H * (db / floorDb); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        ctx.fillStyle = textMuted; ctx.font = '9px monospace'; ctx.fillText(db + ' dB', 2, y - 2);
+      }
+      const freqMarks = [200, 500, 1000, 2000, 3000, 4000, 5000, 6000, 8000];
+      freqMarks.forEach(f => {
+        const x = freqToX(f, binHz, data.length, W); if (x < 0 || x > W) return;
+        ctx.strokeStyle = f >= HIGH_FREQ_MIN && f <= HIGH_FREQ_MAX ? 'rgba(168,85,247,0.25)' : gridColor;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+        ctx.fillStyle = textMuted; ctx.font = '9px monospace';
+        const label = f >= 1000 ? (f / 1000) + 'k' : f; ctx.fillText(label, x + 2, H - 4);
+      });
+      const xHL = freqToX(HIGH_FREQ_MIN, binHz, data.length, W);
+      const xHR = freqToX(HIGH_FREQ_MAX, binHz, data.length, W);
+      ctx.fillStyle = 'rgba(124,58,237,0.06)'; ctx.fillRect(xHL, 0, xHR - xHL, H);
+      const now = Date.now();
+      if (!peakHold) { peakHold = new Float32Array(W); peakDecay = new Float32Array(W); lastPeakTime = now; }
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      const accentRgb = accent.startsWith('rgb') ? accent : 'rgba(0, 212, 255, 1)';
+      const accentBase = accentRgb.replace(/rgba?\((.*?)\)/, '$1').split(',').slice(0, 3).join(',');
+      grad.addColorStop(0, `rgba(${accentBase}, 0.7)`); grad.addColorStop(0.5, 'rgba(99,102,241,0.3)'); grad.addColorStop(1, `rgba(${accentBase}, 0.02)`);
+      ctx.beginPath(); ctx.moveTo(0, H);
+      for (let x = 0; x < W; x++) {
+        const freq = xToFreq(x, binHz, data.length, W); const bin = Math.round(freq / binHz);
+        const db = (bin >= 0 && bin < data.length) ? data[bin] : floorDb; const y = dbToY(db, H);
+        if (x === 0) ctx.lineTo(0, y); else ctx.lineTo(x, y);
+        if (db > peakHold[x]) { peakHold[x] = db; peakDecay[x] = 0; }
+      }
+      ctx.lineTo(W, H); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+      ctx.beginPath(); ctx.strokeStyle = accent; ctx.lineWidth = 1.5; ctx.shadowColor = `rgba(${accentBase}, 0.4)`; ctx.shadowBlur = 4;
+      for (let x = 0; x < W; x++) {
+        const freq = xToFreq(x, binHz, data.length, W); const bin = Math.round(freq / binHz);
+        const db = (bin >= 0 && bin < data.length) ? data[bin] : floorDb; const y = dbToY(db, H);
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,107,53,0.7)'; ctx.lineWidth = 1; ctx.beginPath();
+      const dt = (now - lastPeakTime) / 1000; lastPeakTime = now;
+      for (let x = 0; x < W; x++) {
+        peakDecay[x] += dt * 8; peakHold[x] = Math.max(peakHold[x] - peakDecay[x] * dt, floorDb);
+        const y = dbToY(peakHold[x], H); x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    function freqToX(f, bh, len, W) { return (f / SPEC_MAX_HZ) * W; }
+    function xToFreq(x, bh, len, W) { return (x / W) * SPEC_MAX_HZ; }
+    function dbToY(db, H) { const cl = Math.max(floorDb, Math.min(0, db)); return H * (1 - (cl - floorDb) / (-floorDb)); }
+
+    // ─── Peak detection ────────────────────────────────────────────────────────────
+    function findPeaks(data, binHz, freqMin, freqMax, minDb) {
+      const binMin = Math.ceil(freqMin / binHz); const binMax = Math.floor(freqMax / binHz);
+      const peaks = [];
+      for (let i = binMin + 1; i < binMax - 1 && i < data.length - 1; i++) {
+        if (data[i] > minDb && data[i] > data[i - 1] && data[i] > data[i + 1]) {
+          peaks.push({ bin: i, freq: i * binHz, db: data[i] });
+        }
+      }
+      peaks.sort((a, b) => b.db - a.db); return peaks;
+    }
+
+    function dbToPower(db) { return Math.pow(10, db / 10); }
+    function powerToDb(p) { return 10 * Math.log10(p); }
+
+    function computeRatio(data, binHz) {
+      const lowPeaks = findPeaks(data, binHz, 80, 1500, MIN_PEAK_DB).slice(0, N_LOW_PEAKS);
+      const highPeaks = findPeaks(data, binHz, HIGH_FREQ_MIN, HIGH_FREQ_MAX, MIN_PEAK_DB).slice(0, 6);
+      const lowPower = lowPeaks.reduce((s, p) => s + dbToPower(p.db), 0);
+      const highPower = highPeaks.reduce((s, p) => s + dbToPower(p.db), 0);
+      const ratio = lowPower > 0 ? highPower / lowPower : null;
+      return { lowPeaks, highPeaks, lowPower, highPower, ratio };
+    }
+
+    // ─── UI update ─────────────────────────────────────────────────────────────────
+    let smoothRatio = null; const RATIO_SMOOTH = 0.1;
+    function resetSmoothRatio() { smoothRatio = null; }
+
+    function updateRatioUI(ratio, lowPower, highPower, lowPeaks, highPeaks) {
+      if (ratio === null) return;
+      smoothRatio = smoothRatio === null ? ratio : smoothRatio + RATIO_SMOOTH * (ratio - smoothRatio);
+      ratioNum.textContent = smoothRatio.toFixed(2);
+      const style = getComputedStyle(document.body);
+      const logR = Math.log2(smoothRatio);
+      if (logR > 1) ratioNum.style.color = style.getPropertyValue('--red').trim();
+      else if (logR > 0) ratioNum.style.color = style.getPropertyValue('--yellow').trim();
+      else if (logR > -1) ratioNum.style.color = style.getPropertyValue('--green').trim();
+      else ratioNum.style.color = '#3b82f6';
+      drawArc(smoothRatio); updateLEDs(smoothRatio);
+      addRatioSample(ratio); drawBoxPlot();
+      const REF_POWER = dbToPower(-30);
+      const lowPct = Math.min(100, (lowPower / REF_POWER) * 100);
+      const highPct = Math.min(100, (highPower / REF_POWER) * 100);
+      barLow.style.width = lowPct + '%'; barHigh.style.width = highPct + '%';
+      barLowVal.textContent = powerToDb(lowPower).toFixed(1) + ' dB';
+      barHighVal.textContent = powerToDb(highPower).toFixed(1) + ' dB';
+      peaksDisp.innerHTML = '';
+      lowPeaks.forEach((p, i) => {
+        const chip = document.createElement('div'); chip.className = 'peak-chip';
+        chip.textContent = `P${i + 1}: ${Math.round(p.freq)}Hz (${p.db.toFixed(1)}dB)`;
+        peaksDisp.appendChild(chip);
+      });
+      highPeaks.slice(0, 3).forEach(p => {
+        const chip = document.createElement('div'); chip.className = 'peak-chip high';
+        chip.textContent = `${(p.freq / 1000).toFixed(2)}kHz (${p.db.toFixed(1)}dB)`;
+        peaksDisp.appendChild(chip);
+      });
+      const logSmooth = Math.log2(smoothRatio);
+      if (logSmooth > 2) qualLabel.textContent = 'Very Bright / Brilliance Dominant';
+      else if (logSmooth > 0.5) qualLabel.textContent = 'Bright & Forward';
+      else if (logSmooth > -0.5) qualLabel.textContent = 'Well Balanced';
+      else if (logSmooth > -1.5) qualLabel.textContent = 'Warm & Full';
+      else qualLabel.textContent = 'Very Warm / Chest Voice Dominant';
+    }
+
+    // ─── Arc Meter drawing ─────────────────────────────────────────────────────────
+    function drawArc(ratio) {
+      const W = 200, H = 110, cx = 100, cy = 105, r = 88, ctx = arcCtx;
+      const style = getComputedStyle(document.body);
+      const trackColor = style.getPropertyValue('--track-bg').trim();
+      const borderColor = style.getPropertyValue('--border').trim();
+      const textMuted = style.getPropertyValue('--text-muted').trim();
+      ctx.clearRect(0, 0, W, H);
+      ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0, false); ctx.lineWidth = 16; ctx.strokeStyle = trackColor; ctx.stroke();
+      for (let i = 0; i <= 10; i++) {
+        const ang = Math.PI + (i / 10) * Math.PI;
+        const x1 = cx + (r - 12) * Math.cos(ang), y1 = cy + (r - 12) * Math.sin(ang);
+        const x2 = cx + (r - 4) * Math.cos(ang), y2 = cy + (r - 4) * Math.sin(ang);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+        ctx.lineWidth = i === 5 ? 2.5 : 1; ctx.strokeStyle = i === 5 ? textMuted : borderColor; ctx.stroke();
+      }
+      if (ratio === null) return;
+      const logR = Math.log2(Math.max(0.1, Math.min(ratio, 10)));
+      const t = Math.max(0, Math.min(1, 0.5 + logR / 6));
+      const needAng = Math.PI + t * Math.PI;
+      const arcGrad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
+      arcGrad.addColorStop(0, '#3b82f6'); arcGrad.addColorStop(0.35, '#10b981'); arcGrad.addColorStop(0.5, '#10b981'); arcGrad.addColorStop(0.65, '#f59e0b'); arcGrad.addColorStop(1, '#ef4444');
+      ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, needAng, false); ctx.lineWidth = 14; ctx.strokeStyle = arcGrad; ctx.lineCap = 'round'; ctx.stroke();
+      const nx = cx + (r - 8) * Math.cos(needAng), ny = cy + (r - 8) * Math.sin(needAng);
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(nx, ny); ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.lineCap = 'round'; ctx.shadowColor = 'rgba(255,255,255,0.6)'; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.font = '9px monospace'; ctx.fillStyle = '#3b82f6'; ctx.fillText('WARM', cx - r + 2, cy - 4);
+      ctx.fillStyle = '#ef4444'; ctx.textAlign = 'right'; ctx.fillText('BRIGHT', cx + r - 2, cy - 4); ctx.textAlign = 'left';
+    }
+
+    // ─── FINAL INITIALIZATION ───
+    getAudioDevices();
+    if (localStorage.getItem('theme') === 'light') setTheme(true);
     drawArc(null);
     updateLEDs(1);
+    drawBoxPlot();
   </script>
 </body>
 
