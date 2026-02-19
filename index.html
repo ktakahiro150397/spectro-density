@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spectral Density Analyzer</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #111827;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #7c3aed;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+    gap: 24px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,212,255,0.4);
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header { text-align: center; }
+
+  .main-grid {
+    width: 100%;
+    max-width: 960px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 700px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+
+  .panel-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  /* Spectrometer */
+  .spectrometer-panel {
+    grid-column: 1 / -1;
+  }
+
+  #specCanvas {
+    width: 100%;
+    height: 200px;
+    border-radius: 8px;
+    background: #070b14;
+    display: block;
+  }
+
+  /* Ratio Meter */
+  .ratio-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .ratio-number {
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    transition: color 0.3s;
+  }
+
+  .ratio-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Arc Meter */
+  .arc-container {
+    position: relative;
+    width: 200px;
+    height: 110px;
+    margin: 0 auto;
+  }
+
+  #arcCanvas {
+    width: 200px;
+    height: 110px;
+    display: block;
+  }
+
+  .arc-value-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+
+  /* Bar Meter */
+  .bar-meter-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .bar-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    width: 90px;
+    text-align: right;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 12px;
+    background: #0d1424;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.05s ease;
+    position: relative;
+  }
+
+  .bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: rgba(255,255,255,0.15);
+    border-radius: 6px 6px 0 0;
+  }
+
+  .bar-fill.low-peaks { background: linear-gradient(90deg, #1d4ed8, #3b82f6); }
+  .bar-fill.high-peaks { background: linear-gradient(90deg, #7c3aed, #a855f7); }
+
+  .bar-val {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    width: 40px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Vertical gradient meter */
+  .gradient-meter {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+    height: 120px;
+  }
+
+  .gradient-seg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .seg-bar {
+    width: 28px;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.05s ease, opacity 0.05s ease;
+    min-height: 2px;
+  }
+
+  .seg-label {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+
+  /* LED meter */
+  .led-meter {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+  }
+
+  .led-row {
+    display: flex;
+    gap: 3px;
+  }
+
+  .led {
+    width: 14px;
+    height: 10px;
+    border-radius: 2px;
+    transition: background 0.05s, box-shadow 0.05s;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn {
+    padding: 10px 24px;
+    border-radius: 10px;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-start {
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    color: white;
+    box-shadow: 0 4px 20px rgba(14,165,233,0.3);
+  }
+
+  .btn-start:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(14,165,233,0.45); }
+  .btn-start:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-stop {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    color: white;
+    box-shadow: 0 4px 20px rgba(239,68,68,0.3);
+  }
+
+  .btn-stop:hover { transform: translateY(-1px); }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    display: inline-block;
+    margin-right: 6px;
+  }
+
+  .status-dot.active {
+    background: var(--green);
+    box-shadow: 0 0 8px rgba(16,185,129,0.8);
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(16,185,129,0.8); }
+    50% { box-shadow: 0 0 16px rgba(16,185,129,1); }
+  }
+
+  .status-text { font-size: 0.8rem; color: var(--text-muted); }
+
+  /* Info box */
+  .info-box {
+    background: rgba(0,212,255,0.05);
+    border: 1px solid rgba(0,212,255,0.15);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    max-width: 960px;
+    width: 100%;
+  }
+
+  .info-box strong { color: var(--accent); }
+
+  /* Settings row */
+  .settings-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .setting-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .setting-item label { white-space: nowrap; }
+
+  .setting-item input[type="range"] {
+    width: 80px;
+    accent-color: var(--accent);
+  }
+
+  .setting-item span {
+    min-width: 30px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  /* Peak markers */
+  .peaks-display {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .peak-chip {
+    background: rgba(0,212,255,0.08);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.65rem;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .peak-chip.high {
+    background: rgba(168,85,247,0.08);
+    border-color: rgba(168,85,247,0.2);
+    color: #a855f7;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Spectral Density Analyzer</h1>
+  <div class="subtitle">Vocal Formant &amp; Brilliance Ratio</div>
+</div>
+
+<div class="controls">
+  <button class="btn btn-start" id="btnStart">&#9654; Start Microphone</button>
+  <button class="btn btn-stop" id="btnStop" style="display:none">&#9632; Stop</button>
+  <span><span class="status-dot" id="statusDot"></span><span class="status-text" id="statusText">Idle</span></span>
+</div>
+
+<div class="settings-row">
+  <div class="setting-item">
+    <label>FFT Size:</label>
+    <select id="fftSizeSelect" style="background:#1e2d45;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:0.75rem;">
+      <option value="2048">2048</option>
+      <option value="4096" selected>4096</option>
+      <option value="8192">8192</option>
+    </select>
+  </div>
+  <div class="setting-item">
+    <label>Smoothing:</label>
+    <input type="range" id="smoothing" min="0" max="0.95" step="0.05" value="0.8">
+    <span id="smoothingVal">0.80</span>
+  </div>
+  <div class="setting-item">
+    <label>Floor (dB):</label>
+    <input type="range" id="floorDb" min="-120" max="-40" step="5" value="-80">
+    <span id="floorDbVal">-80</span>
+  </div>
+</div>
+
+<div class="main-grid">
+
+  <!-- Spectrometer -->
+  <div class="panel spectrometer-panel">
+    <div class="panel-title">Real-Time Spectrum (FFT)</div>
+    <canvas id="specCanvas"></canvas>
+    <div class="peaks-display" id="peaksDisplay"></div>
+  </div>
+
+  <!-- Ratio Arc Meter -->
+  <div class="panel">
+    <div class="panel-title">Spectral Ratio Meter</div>
+    <div class="ratio-display">
+      <div class="arc-container">
+        <canvas id="arcCanvas" width="200" height="110"></canvas>
+        <div class="arc-value-overlay">
+          <div class="ratio-number" id="ratioNumber">—</div>
+          <div class="ratio-label">Low:High ratio</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="bar-meter-wrap">
+        <div class="bar-row">
+          <div class="bar-label">Low Peaks (P1+P2+P3)</div>
+          <div class="bar-track"><div class="bar-fill low-peaks" id="barLow" style="width:0%"></div></div>
+          <div class="bar-val" id="barLowVal">— dB</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">High (2k–6kHz)</div>
+          <div class="bar-track"><div class="bar-fill high-peaks" id="barHigh" style="width:0%"></div></div>
+          <div class="bar-val" id="barHighVal">— dB</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LED / Segment Meter -->
+  <div class="panel">
+    <div class="panel-title">Ratio LED Meter</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:0.1em;">LOW DOMINANCE ← → HIGH BRILLIANCE</div>
+      <div class="led-meter" id="ledMeter"></div>
+      <div style="display:flex;justify-content:space-between;width:100%;padding:0 4px">
+        <span style="font-size:0.6rem;color:var(--green)">WARM</span>
+        <span style="font-size:0.6rem;color:var(--yellow)">BALANCED</span>
+        <span style="font-size:0.6rem;color:var(--red)">BRIGHT</span>
+      </div>
+      <div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;" id="qualityLabel">—</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="info-box">
+  <strong>How it works:</strong>
+  The analyzer detects the <strong>three strongest low-frequency peaks</strong> (typically vocal fundamentals and lower formants),
+  sums their power, then sums the power of peaks in the <strong>2 kHz – 6 kHz</strong> range (singer's formant / brilliance zone).
+  The <strong>ratio</strong> = Low Power / High Power. A ratio &gt; 1 means the voice is warm/chest-dominant;
+  ratio near 1 is balanced; ratio &lt; 1 means the high-frequency brilliance is dominant.
+</div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+const HIGH_FREQ_MIN = 2000;
+const HIGH_FREQ_MAX = 6000;
+const N_LOW_PEAKS = 3;
+const MIN_PEAK_DB = -70; // ignore peaks below this
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let audioCtx = null, analyser = null, micStream = null, animId = null;
+let fftSize = 4096;
+let smoothing = 0.8;
+let floorDb = -80;
+
+// ─── DOM refs ──────────────────────────────────────────────────────────────────
+const btnStart   = document.getElementById('btnStart');
+const btnStop    = document.getElementById('btnStop');
+const statusDot  = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const specCanvas = document.getElementById('specCanvas');
+const arcCanvas  = document.getElementById('arcCanvas');
+const ratioNum   = document.getElementById('ratioNumber');
+const barLow     = document.getElementById('barLow');
+const barHigh    = document.getElementById('barHigh');
+const barLowVal  = document.getElementById('barLowVal');
+const barHighVal = document.getElementById('barHighVal');
+const peaksDisp  = document.getElementById('peaksDisplay');
+const qualLabel  = document.getElementById('qualityLabel');
+const ledMeter   = document.getElementById('ledMeter');
+
+const specCtx = specCanvas.getContext('2d');
+const arcCtx  = arcCanvas.getContext('2d');
+
+// ─── LED setup ─────────────────────────────────────────────────────────────────
+const LED_COLS = 21;
+const LED_ROWS = 8;
+const LED_COLORS_DARK = [];
+const LED_COLORS_LIT  = [];
+
+function buildLEDs() {
+  ledMeter.innerHTML = '';
+  for (let r = LED_ROWS - 1; r >= 0; r--) {
+    const row = document.createElement('div');
+    row.className = 'led-row';
+    for (let c = 0; c < LED_COLS; c++) {
+      const led = document.createElement('div');
+      led.className = 'led';
+      led.id = `led-${r}-${c}`;
+      row.appendChild(led);
+    }
+    ledMeter.appendChild(row);
+  }
+}
+buildLEDs();
+
+function ledColor(col) {
+  // 0..6 green, 7..13 yellow, 14..20 red
+  if (col <= 6)  return { lit: '#10b981', dark: '#052e1a', glow: 'rgba(16,185,129,0.6)' };
+  if (col <= 13) return { lit: '#f59e0b', dark: '#2a1a00', glow: 'rgba(245,158,11,0.6)' };
+  return           { lit: '#ef4444', dark: '#2a0000', glow: 'rgba(239,68,68,0.6)' };
+}
+
+function updateLEDs(ratio) {
+  // ratio: 0 = all green (warm), middle = balanced, high = red (bright)
+  // map ratio to 0..1 where 0.5 = balanced (col 10 center)
+  // ratio > 1 -> warm side (left), ratio < 1 -> bright side (right)
+  // Use log scale: log2(ratio): -3..+3 mapped to 0..20
+  const logR = Math.log2(Math.max(0.1, Math.min(ratio, 10)));
+  // logR: positive = warm, negative = bright
+  // center at col 10, warm goes left (col<10), bright goes right (col>10)
+  const level = Math.round(10 - logR * (10 / 3)); // clamp 0..20
+  const lit = Math.max(0, Math.min(20, level));
+
+  for (let r = 0; r < LED_ROWS; r++) {
+    for (let c = 0; c < LED_COLS; c++) {
+      const el = document.getElementById(`led-${r}-${c}`);
+      if (!el) continue;
+      const { lit: litColor, dark, glow } = ledColor(c);
+      // determine which LEDs are on: everything from center (10) to lit
+      // if lit < 10 (warm): cols 0..lit are on
+      // if lit > 10 (bright): cols lit..20 are on
+      // if lit == 10: just center on
+      let on = false;
+      if (lit <= 10) {
+        on = (c >= lit && c <= 10);
+      } else {
+        on = (c >= 10 && c <= lit);
+      }
+      // Vertical fade: top rows need more signal
+      const rowThreshold = Math.floor(LED_ROWS * 0.5);
+      const levelStrength = Math.abs(lit - 10);
+      const rowOn = on && (r < Math.min(LED_ROWS, Math.ceil(levelStrength * LED_ROWS / 10) + 1));
+      el.style.background = rowOn ? litColor : dark;
+      el.style.boxShadow  = rowOn ? `0 0 6px ${glow}` : 'none';
+    }
+  }
+}
+
+// ─── Start mic ─────────────────────────────────────────────────────────────────
+btnStart.addEventListener('click', async () => {
+  btnStart.disabled = true;
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = fftSize;
+    analyser.smoothingTimeConstant = smoothing;
+
+    const source = audioCtx.createMediaStreamSource(micStream);
+    source.connect(analyser);
+
+    btnStart.style.display = 'none';
+    btnStop.style.display = '';
+    statusDot.classList.add('active');
+    statusText.textContent = 'Analyzing…';
+
+    loop();
+  } catch (e) {
+    statusText.textContent = 'Mic error: ' + e.message;
+    btnStart.disabled = false;
+  }
+});
+
+btnStop.addEventListener('click', stopAnalysis);
+
+function stopAnalysis() {
+  if (animId) cancelAnimationFrame(animId);
+  if (micStream) micStream.getTracks().forEach(t => t.stop());
+  if (audioCtx) audioCtx.close();
+  animId = micStream = audioCtx = analyser = null;
+  btnStop.style.display = 'none';
+  btnStart.style.display = '';
+  btnStart.disabled = false;
+  statusDot.classList.remove('active');
+  statusText.textContent = 'Stopped';
+  clearUI();
+}
+
+function clearUI() {
+  ratioNum.textContent = '—';
+  barLow.style.width = '0%';
+  barHigh.style.width = '0%';
+  barLowVal.textContent = '— dB';
+  barHighVal.textContent = '— dB';
+  peaksDisp.innerHTML = '';
+  qualLabel.textContent = '—';
+  updateLEDs(1);
+  drawArc(null);
+  specCtx.clearRect(0, 0, specCanvas.width, specCanvas.height);
+}
+
+// ─── Settings ──────────────────────────────────────────────────────────────────
+document.getElementById('fftSizeSelect').addEventListener('change', e => {
+  fftSize = parseInt(e.target.value);
+  if (analyser) analyser.fftSize = fftSize;
+});
+
+document.getElementById('smoothing').addEventListener('input', e => {
+  smoothing = parseFloat(e.target.value);
+  document.getElementById('smoothingVal').textContent = smoothing.toFixed(2);
+  if (analyser) analyser.smoothingTimeConstant = smoothing;
+});
+
+document.getElementById('floorDb').addEventListener('input', e => {
+  floorDb = parseInt(e.target.value);
+  document.getElementById('floorDbVal').textContent = floorDb;
+});
+
+// ─── Main loop ─────────────────────────────────────────────────────────────────
+function loop() {
+  animId = requestAnimationFrame(loop);
+
+  const bufLen  = analyser.frequencyBinCount;
+  const data    = new Float32Array(bufLen);
+  analyser.getFloatFrequencyData(data); // dB values
+
+  const sampleRate = audioCtx.sampleRate;
+  const binHz      = sampleRate / analyser.fftSize;
+
+  resizeCanvas();
+  drawSpectrum(data, binHz);
+
+  const { lowPeaks, highPeaks, lowPower, highPower, ratio } = computeRatio(data, binHz);
+  updateRatioUI(ratio, lowPower, highPower, lowPeaks, highPeaks);
+}
+
+// ─── Resize canvas ──────────────────────────────────────────────────────────────
+function resizeCanvas() {
+  const w = specCanvas.offsetWidth;
+  const h = specCanvas.offsetHeight;
+  if (specCanvas.width !== w || specCanvas.height !== h) {
+    specCanvas.width  = w;
+    specCanvas.height = h;
+  }
+}
+
+// ─── Spectrum drawing ──────────────────────────────────────────────────────────
+const SPEC_MAX_HZ = 8000;
+let peakHold = null;
+let peakDecay = null;
+let lastPeakTime = null;
+
+function drawSpectrum(data, binHz) {
+  const W = specCanvas.width;
+  const H = specCanvas.height;
+  const ctx = specCtx;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background grid
+  ctx.strokeStyle = 'rgba(30,45,69,0.8)';
+  ctx.lineWidth = 1;
+
+  // Horizontal grid lines (dB)
+  const dbRange = Math.abs(floorDb); // 0 to floorDb
+  for (let db = 0; db >= floorDb; db -= 10) {
+    const y = H * (db / floorDb);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(100,116,139,0.6)';
+    ctx.font = '9px monospace';
+    ctx.fillText(db + ' dB', 2, y - 2);
+  }
+
+  // Vertical frequency markers
+  const freqMarks = [200, 500, 1000, 2000, 3000, 4000, 5000, 6000, 8000];
+  freqMarks.forEach(f => {
+    const x = freqToX(f, binHz, data.length, W);
+    if (x < 0 || x > W) return;
+    ctx.strokeStyle = f >= HIGH_FREQ_MIN && f <= HIGH_FREQ_MAX
+      ? 'rgba(168,85,247,0.25)' : 'rgba(30,45,69,0.8)';
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    ctx.fillStyle = 'rgba(100,116,139,0.6)';
+    ctx.font = '9px monospace';
+    const label = f >= 1000 ? (f/1000) + 'k' : f;
+    ctx.fillText(label, x + 2, H - 4);
+  });
+
+  // High zone shading
+  const xHL = freqToX(HIGH_FREQ_MIN, binHz, data.length, W);
+  const xHR = freqToX(HIGH_FREQ_MAX, binHz, data.length, W);
+  ctx.fillStyle = 'rgba(124,58,237,0.06)';
+  ctx.fillRect(xHL, 0, xHR - xHL, H);
+
+  // Peak hold
+  const now = Date.now();
+  if (!peakHold) { peakHold = new Float32Array(W); peakDecay = new Float32Array(W); lastPeakTime = now; }
+
+  // Gradient fill under curve
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0,   'rgba(0,212,255,0.7)');
+  grad.addColorStop(0.5, 'rgba(99,102,241,0.3)');
+  grad.addColorStop(1,   'rgba(0,212,255,0.02)');
+
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+
+  for (let x = 0; x < W; x++) {
+    const freq = xToFreq(x, binHz, data.length, W);
+    const bin  = Math.round(freq / binHz);
+    const db   = (bin >= 0 && bin < data.length) ? data[bin] : floorDb;
+    const y    = dbToY(db, H);
+    if (x === 0) ctx.lineTo(0, y); else ctx.lineTo(x, y);
+
+    // peak hold
+    if (db > peakHold[x]) { peakHold[x] = db; peakDecay[x] = 0; }
+  }
+
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Spectrum line
+  ctx.beginPath();
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = 'rgba(0,212,255,0.4)';
+  ctx.shadowBlur = 4;
+  for (let x = 0; x < W; x++) {
+    const freq = xToFreq(x, binHz, data.length, W);
+    const bin  = Math.round(freq / binHz);
+    const db   = (bin >= 0 && bin < data.length) ? data[bin] : floorDb;
+    const y    = dbToY(db, H);
+    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Peak hold line
+  ctx.strokeStyle = 'rgba(255,107,53,0.7)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const dt = (now - lastPeakTime) / 1000;
+  lastPeakTime = now;
+  for (let x = 0; x < W; x++) {
+    peakDecay[x] += dt * 8; // dB/s decay
+    peakHold[x] = Math.max(peakHold[x] - peakDecay[x] * dt, floorDb);
+    const y = dbToY(peakHold[x], H);
+    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+function freqToX(freq, binHz, bufLen, W) {
+  // Use log-ish scale: linear up to SPEC_MAX_HZ mapped to full width
+  return (freq / SPEC_MAX_HZ) * W;
+}
+
+function xToFreq(x, binHz, bufLen, W) {
+  return (x / W) * SPEC_MAX_HZ;
+}
+
+function dbToY(db, H) {
+  const clamped = Math.max(floorDb, Math.min(0, db));
+  return H * (1 - (clamped - floorDb) / (-floorDb));
+}
+
+// ─── Peak detection ────────────────────────────────────────────────────────────
+function findPeaks(data, binHz, freqMin, freqMax, minDb) {
+  const binMin = Math.ceil(freqMin / binHz);
+  const binMax = Math.floor(freqMax / binHz);
+  const peaks = [];
+
+  for (let i = binMin + 1; i < binMax - 1 && i < data.length - 1; i++) {
+    if (data[i] > minDb &&
+        data[i] > data[i - 1] &&
+        data[i] > data[i + 1]) {
+      peaks.push({ bin: i, freq: i * binHz, db: data[i] });
+    }
+  }
+  // Sort by power descending
+  peaks.sort((a, b) => b.db - a.db);
+  return peaks;
+}
+
+function dbToPower(db) {
+  return Math.pow(10, db / 10);
+}
+
+function powerToDb(p) {
+  return 10 * Math.log10(p);
+}
+
+function computeRatio(data, binHz) {
+  // Low peaks: fundamental + harmonics, search 80Hz – 1500Hz
+  const lowPeaks  = findPeaks(data, binHz, 80, 1500, MIN_PEAK_DB).slice(0, N_LOW_PEAKS);
+  // High peaks: 2kHz – 6kHz
+  const highPeaks = findPeaks(data, binHz, HIGH_FREQ_MIN, HIGH_FREQ_MAX, MIN_PEAK_DB).slice(0, 6);
+
+  const lowPower  = lowPeaks.reduce((s, p) => s + dbToPower(p.db), 0);
+  const highPower = highPeaks.reduce((s, p) => s + dbToPower(p.db), 0);
+
+  const ratio = highPower > 0 ? lowPower / highPower : null;
+
+  return { lowPeaks, highPeaks, lowPower, highPower, ratio };
+}
+
+// ─── UI update ─────────────────────────────────────────────────────────────────
+let smoothRatio = null;
+const RATIO_SMOOTH = 0.1;
+
+function updateRatioUI(ratio, lowPower, highPower, lowPeaks, highPeaks) {
+  if (ratio === null) return;
+
+  // Smooth ratio
+  smoothRatio = smoothRatio === null ? ratio : smoothRatio + RATIO_SMOOTH * (ratio - smoothRatio);
+
+  // Number
+  ratioNum.textContent = smoothRatio.toFixed(2);
+
+  // Color
+  const logR = Math.log2(smoothRatio);
+  if (logR > 1)       ratioNum.style.color = '#3b82f6';   // warm (blue)
+  else if (logR > 0)  ratioNum.style.color = '#10b981';   // balanced-warm (green)
+  else if (logR > -1) ratioNum.style.color = '#f59e0b';   // balanced-bright
+  else                ratioNum.style.color = '#ef4444';   // very bright (red)
+
+  // Arc
+  drawArc(smoothRatio);
+
+  // LED
+  updateLEDs(smoothRatio);
+
+  // Bars: map power to 0-100% relative to some reference
+  const REF_POWER = dbToPower(-30); // reference power for 100%
+  const lowPct  = Math.min(100, (lowPower  / REF_POWER) * 100);
+  const highPct = Math.min(100, (highPower / REF_POWER) * 100);
+  barLow.style.width  = lowPct  + '%';
+  barHigh.style.width = highPct + '%';
+  barLowVal.textContent  = powerToDb(lowPower).toFixed(1)  + ' dB';
+  barHighVal.textContent = powerToDb(highPower).toFixed(1) + ' dB';
+
+  // Peak chips
+  peaksDisp.innerHTML = '';
+  lowPeaks.forEach((p, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'peak-chip';
+    chip.textContent = `P${i+1}: ${Math.round(p.freq)}Hz (${p.db.toFixed(1)}dB)`;
+    peaksDisp.appendChild(chip);
+  });
+  highPeaks.slice(0, 3).forEach(p => {
+    const chip = document.createElement('div');
+    chip.className = 'peak-chip high';
+    chip.textContent = `${(p.freq/1000).toFixed(2)}kHz (${p.db.toFixed(1)}dB)`;
+    peaksDisp.appendChild(chip);
+  });
+
+  // Quality label
+  const logSmooth = Math.log2(smoothRatio);
+  if      (logSmooth >  2) qualLabel.textContent = 'Very Warm / Chest Voice Dominant';
+  else if (logSmooth >  0.5) qualLabel.textContent = 'Warm & Full';
+  else if (logSmooth >  -0.5) qualLabel.textContent = 'Well Balanced';
+  else if (logSmooth >  -1.5) qualLabel.textContent = 'Bright & Forward';
+  else                       qualLabel.textContent = 'Very Bright / Brilliance Dominant';
+}
+
+// ─── Arc Meter drawing ─────────────────────────────────────────────────────────
+function drawArc(ratio) {
+  const W = 200, H = 110;
+  const cx = 100, cy = 105;
+  const r  = 88;
+  const ctx = arcCtx;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, 0, false);
+  ctx.lineWidth = 16;
+  ctx.strokeStyle = '#0d1424';
+  ctx.stroke();
+
+  // Tick marks
+  for (let i = 0; i <= 10; i++) {
+    const ang = Math.PI + (i / 10) * Math.PI;
+    const x1  = cx + (r - 12) * Math.cos(ang);
+    const y1  = cy + (r - 12) * Math.sin(ang);
+    const x2  = cx + (r - 4) * Math.cos(ang);
+    const y2  = cy + (r - 4) * Math.sin(ang);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.lineWidth = i === 5 ? 2.5 : 1;
+    ctx.strokeStyle = i === 5 ? '#64748b' : '#1e2d45';
+    ctx.stroke();
+  }
+
+  if (ratio === null) return;
+
+  // Map ratio to angle (log scale, -3..+3 log2 -> 0..PI)
+  const logR    = Math.log2(Math.max(0.1, Math.min(ratio, 10)));
+  const t       = Math.max(0, Math.min(1, 0.5 - logR / 6)); // 0=warm/left, 1=bright/right
+  const needAng = Math.PI + t * Math.PI;
+
+  // Colored arc
+  const arcGrad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
+  arcGrad.addColorStop(0,    '#3b82f6'); // warm (blue)
+  arcGrad.addColorStop(0.35, '#10b981'); // balanced-warm
+  arcGrad.addColorStop(0.5,  '#10b981'); // balanced
+  arcGrad.addColorStop(0.65, '#f59e0b'); // balanced-bright
+  arcGrad.addColorStop(1,    '#ef4444'); // bright
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, needAng, false);
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = arcGrad;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Needle
+  const nx = cx + (r - 8) * Math.cos(needAng);
+  const ny = cy + (r - 8) * Math.sin(needAng);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(nx, ny);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(255,255,255,0.6)';
+  ctx.shadowBlur = 6;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // Labels
+  ctx.font = '9px monospace';
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillText('WARM', cx - r + 2, cy - 4);
+  ctx.fillStyle = '#ef4444';
+  ctx.textAlign = 'right';
+  ctx.fillText('BRIGHT', cx + r - 2, cy - 4);
+  ctx.textAlign = 'left';
+}
+
+// Initial render
+drawArc(null);
+updateLEDs(1);
+</script>
+</body>
+</html>
